@@ -1,6 +1,6 @@
 # 10XReach - TikTok Video Processor
 
-This repository contains a Python script (`video_processor.py`) designed to process video files (e.g., downloaded from Instagram) to prepare them for uploading to TikTok. The primary goal is to make these videos technically unique to potentially reduce the risk of being flagged or "shadowbanned" by TikTok for being simple re-uploads.
+This repository contains a Python script (`video_processor.py`) designed to process video files (e.g., downloaded from platforms like Instagram or TikTok) to prepare them for re-uploading to these or other platforms. The primary goal is to make these videos technically unique, which can help reduce the risk of being flagged or "shadowbanned" for being simple re-uploads, regardless of the source or destination platform (e.g., Instagram to TikTok, TikTok to Instagram, TikTok to TikTok, Instagram to Instagram).
 
 ## How it Works & Features Implemented
 

@@ -27,7 +27,9 @@ How to avoid detection (aka not get flagged as a duplicate):
 
 To avoid detection: modify at least 2-3 layers (visual, audio, metadata). Don't just trim a second or flip the video, go deeper.
 
-This repository contains a Python script (`video_processor.py`) designed to process video files (e.g., downloaded from platforms like Instagram or TikTok) to prepare them for re-uploading to these or other platforms. The primary goal is to make these videos technically unique, which can help reduce the risk of being flagged or "shadowbanned" for being simple re-uploads, regardless of the source or destination platform (e.g., Instagram to TikTok, TikTok to Instagram, TikTok to TikTok, Instagram to Instagram).
+This repository contains a Python script (`video_processor.py`) and a Streamlit-based Graphical User Interface (`video_gui.py`) designed to process video files (e.g., downloaded from platforms like Instagram or TikTok) to prepare them for re-uploading to these or other platforms. The primary goal is to make these videos technically unique, which can help reduce the risk of being flagged or "shadowbanned" for being simple re-uploads, regardless of the source or destination platform (e.g., Instagram to TikTok, TikTok to Instagram, TikTok to TikTok, Instagram to Instagram).
+
+The `video_processor.py` script handles the core FFmpeg processing, while `video_gui.py` provides an easy-to-use interface for it.
 
 ## How it Works & Features Implemented
 
@@ -47,6 +49,7 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
     *   Applies a very slight brightness and contrast adjustment (`eq=brightness=0.005:contrast=1.005`) to subtly change the video's visual data.
     *   Performs a subtle 3 % centre-zoom (crop) to shift pixel positions enough to change TikTok's visual hash while remaining imperceptible to viewers.
     *   Adds a virtually invisible 2 × 2 px white dot in the top-left corner of every frame to further alter the bitmap without affecting user experience.
+    *   **Horizontal Flip (Optional)**: Can horizontally flip the video using the `--hflip` command-line argument. This is another common technique to make content appear different to detection algorithms.
 9.  **Video Encoding**:
     *   Uses the `libx264` codec for video encoding, which is widely compatible.
     *   Sets an explicit video bitrate of `6000k` (`-b:v 6000k`) to ensure consistent quality and a different video stream signature than a default transcode.
@@ -57,6 +60,11 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
     *   Offsets the audio track by 200 ms (`adelay`) to further break direct alignment with original material.
     *   **Automatic Background Noise**: If a file named `background_noise.mp3` exists in the `sounds/` directory, it is automatically mixed in as very low-volume background noise. This adds another layer of audio uniqueness. The noise audio is looped and its volume is significantly reduced. If the file is not found, processing continues without background noise.
 11. **Cross-Platform Compatibility**: The script is designed to be compatible with both macOS and Windows, provided Python 3 and FFmpeg are correctly installed and accessible. It includes logic to try and find the FFmpeg executable.
+12. **Graphical User Interface (GUI)**: A `video_gui.py` script using Streamlit provides a user-friendly way to interact with the video processor. Features include:
+    *   Drag-and-drop uploading of up to 5 `.mp4` video files at a time.
+    *   A checkbox to enable/disable horizontal video flipping.
+    *   Progress bar during processing.
+    *   Download a `.zip` file containing all processed videos.
 
 ## Why These Steps Are Useful
 
@@ -73,10 +81,29 @@ While no script can guarantee that a video won't be subject to platform algorith
 1.  **Prerequisites**:
     *   **Python 3**: Ensure Python 3 is installed on your system.
     *   **FFmpeg**: Ensure FFmpeg is installed and accessible in your system's PATH, or the script will attempt to guide you if it can't find it in common locations.
+    *   **Dependencies**: Install required Python packages:
+        ```bash
+        pip install -r requirements.txt
+        ```
     *   **Optional Background Noise File**: To enable automatic background noise mixing, create a `sounds/` directory in the same location as the script, and place an audio file named `background_noise.mp3` inside it.
 2.  **Setup**:
-    *   Place the `.mp4` video files you want to process into a folder named `videos/` in the same directory as the `video_processor.py` script.
-3.  **Running the Script**:
+    *   Place the `.mp4` video files you want to process into a folder named `videos/` in the same directory as the `video_processor.py` script (this is mainly for the command-line version, the GUI uses direct uploads).
+3.  **Running the Application**:
+
+    There are two ways to use the video processor:
+
+    **A) Using the Graphical User Interface (Recommended for ease of use):**
+    *   Open your terminal or command prompt.
+    *   Navigate to the project directory.
+    *   Run the GUI:
+        ```bash
+        python3 -m streamlit run video_gui.py
+        ```
+        (If `python3` is not found, try `python -m streamlit run video_gui.py`)
+    *   The GUI will open in your web browser. Drag and drop your videos, select options, and click "Process Videos".
+    *   After processing, a download button will appear to get a `.zip` file of the treated videos.
+
+    **B) Using the Command-Line Script (`video_processor.py`):**
     *   Open your terminal or command prompt.
     *   Navigate to the directory where `video_processor.py` is located.
     *   To process all videos in the `videos/` folder:
@@ -86,6 +113,14 @@ While no script can guarantee that a video won't be subject to platform algorith
     *   To process a specific video file (e.g., `my_video.mp4`) located in the `videos/` folder:
         ```bash
         python3 video_processor.py -f my_video.mp4
+        ```
+    *   To process a specific video and flip it horizontally:
+        ```bash
+        python3 video_processor.py -f my_video.mp4 --hflip
+        ```
+    *   To process all videos and flip them horizontally:
+        ```bash
+        python3 video_processor.py --hflip
         ```
     *   To process a specific video and mix in background noise from `sounds/background_noise.mp3`:
         ```bash
@@ -106,4 +141,9 @@ This script was developed iteratively, adding features based on common requireme
 *   Further improved by adding audio re-encoding instead of just copying the audio stream.
 *   Made more user-friendly by adding command-line options for single-file processing and auto-clearing of the output directory.
 *   Added optional background noise mixing (automatically detected from `sounds/background_noise.mp3`) for further audio differentiation.
-*   Addressed and fixed bugs, such as an initial gray screen issue caused by a previous speed adjustment filter (which has since been removed). 
+*   Addressed and fixed bugs, such as an initial gray screen issue caused by a previous speed adjustment filter (which has since been removed).
+*   **Added a Streamlit-based GUI (`video_gui.py`)**:
+    *   Allows drag-and-drop of up to 5 video files.
+    *   Provides an option for horizontal flipping.
+    *   Displays processing progress.
+    *   Enables downloading processed files as a `.zip` archive. 

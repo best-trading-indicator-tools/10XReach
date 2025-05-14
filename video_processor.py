@@ -3,6 +3,7 @@ import subprocess
 import platform
 import shutil # Added for rmtree
 import argparse # Added for command-line arguments
+import re  # Added for SSIM parsing
 
 # Potential font paths - adjust as needed or ensure font.ttf is in the project root
 FONT_FILE_PATH_MACOS_SYSTEM = "/System/Library/Fonts/Helvetica.ttc"
@@ -250,6 +251,49 @@ def process_videos(input_folder, output_folder, ffmpeg_executable, specific_file
             skipped_count +=1
             
     return processed_count, skipped_count
+
+def compute_ssim_percent(ffmpeg_executable, original_path, processed_path):
+    """Returns average SSIM between two videos as a percentage (0–100). Returns None if unavailable."""
+    cmd = [
+        ffmpeg_executable,
+        "-i", original_path,
+        "-i", processed_path,
+        "-filter_complex",
+        "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2[v0];" +
+        "[1:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2[v1];" +
+        "[v0][v1]ssim",
+        "-f", "null", "-"
+    ]
+    try:
+        # Run FFmpeg, don't check exit code as ssim with -f null - often exits non-zero.
+        # Capture stderr as that's where ssim stats are.
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60) # Added timeout
+    except subprocess.TimeoutExpired:
+        print(f"SSIM calculation timed out for {os.path.basename(original_path)} vs {os.path.basename(processed_path)}")
+        return None
+    except Exception as e:
+        print(f"Error running FFmpeg for SSIM calculation: {e}")
+        return None
+
+    # Try to find a line like: "[Parsed_ssim_0 @ ...] SSIM Y:0.123 U:0.456 V:0.789 All:0.321 (...)"
+    # We are interested in the "All:0.321" part.
+    # The regex looks for "SSIM", then any characters non-greedily (.*?), then "All:", then captures the number.
+    match = re.search(r"SSIM.*?All:\s*([0-9\.]+)", result.stderr)
+
+    if match:
+        try:
+            ssim_float = float(match.group(1))
+            return ssim_float * 100.0  # Convert to percentage
+        except ValueError:
+            print(f"Could not convert SSIM value '{match.group(1)}' to float.")
+            # Print the full stderr if conversion fails, as the regex matched something
+            print(f"Full FFmpeg stderr for {os.path.basename(original_path)} on conversion error:\n{result.stderr}")
+            return None
+    else:
+        print(f"SSIM 'All:' pattern not found in FFmpeg stderr for {os.path.basename(original_path)}.")
+        # Print the full stderr if no regex match
+        print(f"Full FFmpeg stderr for {os.path.basename(original_path)} on pattern not found:\n{result.stderr}")
+        return None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process videos for TikTok. Removes metadata, resizes, trims, and optionally adjusts visuals and audio.")

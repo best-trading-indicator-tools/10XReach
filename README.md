@@ -164,4 +164,27 @@ This script was developed iteratively, adding features based on common requireme
         *   Set custom text, position, font size, color, and background color.
         *   Options for **Bold** and **Italic** text styles (reliant on user-provided font files for best results).
     *   Displays processing progress.
-    *   Enables downloading processed files as a `.zip` archive. 
+    *   Enables downloading processed files as a `.zip` archive.
+
+## Interpreting the SSIM Score (GUI)
+
+When you process videos via `video_gui.py` a **SSIM** (%) column appears for each file:
+
+* **SSIM (Structural Similarity Index)** compares every frame of the original input against the processed output, then averages the results.
+* The GUI rescales both videos to 1080 × 1920 first, so we always compare like-for-like frames.
+* The value is reported as a **percentage**:
+  * **≈ 100 %**  → virtually identical (barely altered).
+  * **90 – 95 %**  → minor visual changes only.
+  * **80 – 90 %**  → moderate changes (good starting point, but might still be recognised on very popular clips).
+  * **< 80 %**    → significant visual difference (lowest chance of duplicate-content flags).
+
+### What score should I aim for?
+TikTok's exact thresholds are unknown, but anecdotal evidence suggests:
+
+* **≥ 95 %**: Too high – platform likely treats it as the same clip.
+* **≈ 80–90 %**: Usually acceptable, yet if you want maximum safety add an extra tweak (e.g., overlay text, horizontal flip, stronger crop).
+* **< 80 %**: Safe zone for most duplicate-detection systems.
+
+Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice.
+
+> **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. 

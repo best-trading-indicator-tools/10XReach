@@ -5,7 +5,7 @@ import streamlit as st
 import zipfile
 import io # Import io for BytesIO
 
-from video_processor import get_ffmpeg_path, _execute_ffmpeg_command
+from video_processor import get_ffmpeg_path, _execute_ffmpeg_command, compute_ssim_percent
 
 st.set_page_config(page_title="10XReach Video Processor", page_icon="🎞️", layout="centered")
 
@@ -15,25 +15,42 @@ st.title("🎞️ 10XReach Video Processor GUI")
 st.markdown(
     """
     <style>
-    /* Increase the height and padding of the file uploader dropzone */
-    div[data-testid="stFileUploadDropzone"] {
-        min-height: 450px !important; /* larger drop area - increased from 300px */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 3px dashed rgba(0, 0, 0, 0.3);
-        background-color: rgba(0, 0, 0, 0.02);
-        padding: 60px !important; /* increased from 40px */
-        border-radius: 10px;
+    /* Target the main file uploader container */
+    div[data-testid="stFileUploader"] {
+        border: 3px dashed rgba(0, 128, 0, 0.5) !important; /* Green dashed border for visibility */
+        padding: 30px !important; /* Increased padding for the main container */
+        background-color: rgba(240, 240, 240, 0.5) !important; /* Light grey background for main container */
+        border-radius: 20px !important; /* Increased border-radius */
     }
-    div[data-testid="stFileUploadDropzone"] > section {
-        height: 100% !important; /* ensure inner section fills the container */
-        width: 100% !important; /* ensure inner section fills the container width */
+
+    /* Target the actual dropzone section within the file uploader */
+    div[data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] {
+        min-height: 900px !important; /* Make the actual drop area even taller */
+        background-color: rgba(220, 220, 255, 0.5) !important; /* Light blue background for dropzone */
+        border: 2px solid rgba(0, 0, 255, 0.3) !important; /* Blue solid border for dropzone */
+        border-radius: 15px !important; /* Increased border-radius */
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 60px !important; /* Increased padding inside the dropzone */
+        box-sizing: border-box !important;
     }
-    /* Make the text larger and more visible */
-    div[data-testid="stFileUploadDropzone"] label {
-        font-size: 1.2em !important;
+
+    /* Style the instruction text within the dropzone */
+    div[data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] [data-testid="stFileUploadDropzoneInstructions"],
+    div[data-testid="stFileUploader"] section[data-testid="stFileUploadDropzone"] button { /* Also style the button text if it exists */
+        font-size: 1.3em !important; /* Slightly larger text */
         font-weight: bold !important;
+        color: #333 !important;
+    }
+
+    /* Style the main label of the file uploader if needed */
+    div[data-testid="stFileUploader"] label[data-testid="stWidgetLabel"] {
+        font-size: 1.15em !important; /* Slightly larger label */
+        font-weight: bold !important;
+        margin-bottom: 15px !important; /* Increased margin */
+        display: block !important; /* Ensure it takes its own line */
     }
     </style>
     """,
@@ -127,7 +144,8 @@ if process_btn:
             text_italic = st.session_state.get(f"italic_{idx-1}", False) if add_text else False
 
             st.write(f"Processing {filename} ...")
-            if _execute_ffmpeg_command(
+            # Execute FFmpeg for processing
+            processed_ok = _execute_ffmpeg_command(
                 ffmpeg_path,
                 tmp_input_path,
                 output_path,
@@ -141,10 +159,40 @@ if process_btn:
                 text_bg_color=text_bg_color,
                 text_bold=text_bold,
                 text_italic=text_italic
-            ):
+            )
+
+            # Compute SSIM similarity percentage if processing succeeded
+            ssim_percent = None
+            if processed_ok:
                 success_count += 1
+                ssim_percent = compute_ssim_percent(ffmpeg_path, tmp_input_path, output_path)
+                print(f"DEBUG SSIM for {filename}: {ssim_percent}") # Debug print for console
             else:
                 fail_count += 1
+
+            # Display result row with similarity score
+            result_cols = st.columns([4, 1])
+            with result_cols[0]:
+                status_icon = "✅" if processed_ok else "❌"
+                st.write(f"{status_icon} {filename}")
+            with result_cols[1]:
+                if ssim_percent is not None:
+                    st.metric(
+                        label="SSIM",
+                        value=f"{ssim_percent:.2f}%",
+                        help=(
+                            "SSIM (Structural Similarity Index) measures visual similarity between the original "
+                            "and processed video on a scale of 0–100. We scale both videos to 1080×1920 and "
+                            "compute frame-by-frame SSIM, then average the values. Higher scores mean the output "
+                            "looks almost identical to the source; lower scores indicate larger visual changes. "
+                            "Seeing different scores for clips processed with the same FFmpeg settings is normal "
+                            "because each source clip starts with different resolution, quality, and content. "
+                            "The metric helps gauge how much the video has been altered—useful to ensure the "
+                            "repurposed video is sufficiently different to avoid TikTok duplicate-content flags."
+                        )
+                    )
+                else:
+                    st.write("N/A")
 
             progress.progress(idx / len(uploaded_files))
 

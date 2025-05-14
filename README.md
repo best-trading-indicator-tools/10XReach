@@ -71,6 +71,8 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
         *   Specify text color.
         *   Set a background color for the text (can be semi-transparent or "none").
         *   Choose text style: **Bold** and/or **Italic**. (Requires providing Roboto static font files in the `fonts/Roboto/static/` directory for reliable styling; see Font Handling section).
+    *   **Per-Video Rotation**: For each uploaded video, you can set a rotation angle (in degrees, from -45 to +45, default is 0). Positive values rotate clockwise. Even a small rotation (0.5 to 2 degrees) can significantly lower SSIM scores by altering pixel structure, further reducing the chance of being flagged as duplicate content. Rotated areas are filled with black.
+    *   **Per-Video Playback Speed**: Each clip now has its own speed slider (0.5×–1.5×). The script adjusts video PTS and chains `atempo` filters so audio pitch stays natural, avoiding the historical grey-screen bug.
     *   Progress bar during processing.
     *   Download a `.zip` file containing all processed videos.
 
@@ -163,6 +165,7 @@ This script was developed iteratively, adding features based on common requireme
         *   Toggle overlay on/off per video.
         *   Set custom text, position, font size, color, and background color.
         *   Options for **Bold** and **Italic** text styles (reliant on user-provided font files for best results).
+    *   **Added per-video configurable rotation** to further decrease SSIM and enhance uniqueness.
     *   Displays processing progress.
     *   Enables downloading processed files as a `.zip` archive.
 
@@ -174,20 +177,20 @@ When you process videos via `video_gui.py` a **SSIM** (%) column appears for eac
 * The GUI rescales both videos to 1080 × 1920 first, so we always compare like-for-like frames.
 * The value is reported as a **percentage**:
   * **≈ 100 %**  → virtually identical (barely altered).
-  * **90 – 95 %**  → minor visual changes only.
-  * **80 – 90 %**  → moderate changes (good starting point, but might still be recognised on very popular clips).
-  * **< 80 %**    → significant visual difference (lowest chance of duplicate-content flags).
+  * **90 – 95 %**  → minor visual changes only (consider adding rotation or text overlay if aiming lower).
+  * **80 – 90 %**  → moderate changes (good starting point; using rotation of 0.5-2 degrees often lands here or lower).
+  * **< 80 %**    → significant visual difference (lowest chance of duplicate-content flags; achieved with zoom + rotation).
 
 ### What score should I aim for?
 TikTok's exact thresholds are unknown, but anecdotal evidence suggests:
 
 * **≥ 95 %**: Too high – platform likely treats it as the same clip.
-* **≈ 80–90 %**: Usually acceptable, yet if you want maximum safety add an extra tweak (e.g., overlay text, horizontal flip, stronger crop).
-* **< 80 %**: Safe zone for most duplicate-detection systems.
+* **≈ 80–90 %**: Usually acceptable. To increase uniqueness, consider adding a slight rotation (0.5-2 degrees via the GUI) or enabling text overlay if not already used.
+* **< 80 %**: Safe zone for most duplicate-detection systems. With the default Ken Burns zoom and a small rotation, scores often fall into this range or lower.
 
-Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice.
+Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice, especially if rotation or text overlays are also applied.
 
-> **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. 
+> **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. Using the rotation feature is a good way to push scores lower.
 
 ## Implementation Status
 
@@ -195,11 +198,12 @@ Remember that TikTok also fingerprints **audio** and **metadata**. The script al
 |----------------------------|-------------|-------------------------------------------------------------------------------------|
 | **Visual Changes**         |             |                                                                                     |
 | Resize to 1080x1920        | ✅ Done     | Resizes to 1080x1920 (9:16 vertical), pads if needed, sets SAR 1:1                   |
-| Crop/zoom frame            | ✅ Done     | Applies a 3% centre-crop (crop=iw*0.97:ih*0.97)                                     |
+| Crop/zoom frame            | ✅ Done     | Applies a dynamic Ken Burns zoom (1.0x to 1.1x over 29s) using `zoompan`            |
 | Add overlay text           | ✅ Done     | GUI: Per-video text, pos, size, color, bg-color, bold/italic styles                 |
 | Tweak color settings       | ✅ Done     | Slight brightness (0.005) & contrast (1.005) adjustments                            |
 | Flip video horizontally    | ✅ Done     | Optional via `--hflip` (CLI) or global GUI checkbox                                 |
-| Change playback speed      | ❌ Not done | Video speed unchanged (audio pitch is shifted separately)                             |
+| Rotate video               | ✅ Done     | GUI: Per-video rotation (-45 to +45 degrees), fills with black                      |
+| Change playback speed      | ✅ Done     | Per-video slider (0.5–1.5×) in GUI; uses setpts & atempo, no grey-frame issue |
 | Add watermark/dot          | ✅ Done     | Adds 2x2px white dot (top-left); GUI offers advanced text overlay (see above)       |
 | Trim video duration        | ✅ Done     | Trims video to a maximum of 29 seconds                                              |
 | **Audio Changes**          |             |                                                                                     |
@@ -219,17 +223,17 @@ When you process videos via `video_gui.py` a **SSIM** (%) column appears for eac
 * The GUI rescales both videos to 1080 × 1920 first, so we always compare like-for-like frames.
 * The value is reported as a **percentage**:
   * **≈ 100 %**  → virtually identical (barely altered).
-  * **90 – 95 %**  → minor visual changes only.
-  * **80 – 90 %**  → moderate changes (good starting point, but might still be recognised on very popular clips).
-  * **< 80 %**    → significant visual difference (lowest chance of duplicate-content flags).
+  * **90 – 95 %**  → minor visual changes only (consider adding rotation or text overlay if aiming lower).
+  * **80 – 90 %**  → moderate changes (good starting point; using rotation of 0.5-2 degrees often lands here or lower).
+  * **< 80 %**    → significant visual difference (lowest chance of duplicate-content flags; achieved with zoom + rotation).
 
 ### What score should I aim for?
 TikTok's exact thresholds are unknown, but anecdotal evidence suggests:
 
 * **≥ 95 %**: Too high – platform likely treats it as the same clip.
-* **≈ 80–90 %**: Usually acceptable, yet if you want maximum safety add an extra tweak (e.g., overlay text, horizontal flip, stronger crop).
-* **< 80 %**: Safe zone for most duplicate-detection systems.
+* **≈ 80–90 %**: Usually acceptable. To increase uniqueness, consider adding a slight rotation (0.5-2 degrees via the GUI) or enabling text overlay if not already used.
+* **< 80 %**: Safe zone for most duplicate-detection systems. With the default Ken Burns zoom and a small rotation, scores often fall into this range or lower.
 
-Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice.
+Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice, especially if rotation or text overlays are also applied.
 
-> **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. 
+> **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. Using the rotation feature is a good way to push scores lower. 

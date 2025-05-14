@@ -4,6 +4,8 @@ import platform
 import shutil # Added for rmtree
 import argparse # Added for command-line arguments
 import re  # Added for SSIM parsing
+import math # For converting degrees to radians
+import random  # For randomised zoom/pan
 
 # Potential font paths - adjust as needed or ensure font.ttf is in the project root
 FONT_FILE_PATH_MACOS_SYSTEM = "/System/Library/Fonts/Helvetica.ttc"
@@ -92,7 +94,11 @@ def get_font_path(is_bold=False, is_italic=False):
 def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename_for_log, noise_audio_path=None, horizontal_flip=False,
                             text_to_overlay=None, text_position=None, font_size=None, 
                             text_color=None, text_bg_color=None,
-                            text_bold=False, text_italic=False):
+                            text_bold=False, text_italic=False,
+                            rotation_degrees=0.0,
+                            playback_speed=1.0,
+                            random_zoom_pan=False,
+                            apply_film_grain=False):
     """Helper function to construct and run the FFmpeg command for a single file."""
     command = [
         ffmpeg_executable,
@@ -107,17 +113,53 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
     ]
 
-    # Ken Burns effect: zoom from 1.0x to 1.1x over 29 seconds (approx 870 frames at 30fps)
-    # Increment: (1.1 - 1.0) / (29 * 30) = 0.1 / 870 = 0.0001149...
-    zoom_increment = (1.1 - 1.0) / (29 * 30) # Using 30fps as a reference for zoompan's rate
-    vf_options_list.append(f"zoompan=z='min(max(1,zoom)+{zoom_increment:.6f},1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:d=1:fps=30")
+    # Ken Burns / Zoom-pan. If random_zoom_pan is enabled, use a stronger zoom and randomised pan path.
+    if random_zoom_pan:
+        # Random final zoom between 1.12 and 1.18 (≈12–18 %)
+        zoom_end = random.uniform(1.12, 1.18)
+        zoom_increment = (zoom_end - 1.0) / (29 * 30)  # per-frame increment assuming 30 fps
+
+        # Random pan offsets: up to ±30 % of available pan range along each axis
+        pan_offset_x = random.choice([-1, 1]) * random.uniform(0.0, 0.3)
+        pan_offset_y = random.choice([-1, 1]) * random.uniform(0.0, 0.3)
+
+        x_expr = f"(iw/2-(iw/zoom/2))+{pan_offset_x:.4f}*(iw - iw/zoom)"
+        y_expr = f"(ih/2-(ih/zoom/2))+{pan_offset_y:.4f}*(ih - ih/zoom)"
+
+        vf_options_list.append(
+            f"zoompan=z='min(max(1,zoom)+{zoom_increment:.6f},{zoom_end:.2f})':x='{x_expr}':y='{y_expr}':s=1080x1920:d=1:fps=30"
+        )
+    else:
+        # Default subtle Ken Burns from 1.0 × → 1.1 ×
+        zoom_increment = (1.1 - 1.0) / (29 * 30)
+        vf_options_list.append(
+            f"zoompan=z='min(max(1,zoom)+{zoom_increment:.6f},1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:d=1:fps=30"
+        )
+
+    # Add rotation if specified
+    if rotation_degrees != 0.0:
+        rotation_radians = math.radians(rotation_degrees)
+        # bilinear=0 (nearest neighbor) is faster but lower quality for large rotations.
+        # Consider 'bicubic' for better quality if needed, though slower.
+        # fillcolor=black ensures empty areas from rotation are black.
+        vf_options_list.append(f"rotate={rotation_radians:.6f}:bilinear=0:fillcolor=black")
     
     vf_options_list.append("drawbox=x=2:y=2:w=2:h=2:color=white@0.9:t=fill")
     
     if horizontal_flip:
         vf_options_list.append("hflip")
         
-    vf_options_list.append("setsar=1,eq=brightness=0.005:contrast=1.005")
+    # Pixel-aspect and basic colour tweak
+    vf_options_list.append("setsar=1")
+    vf_options_list.append("eq=brightness=0.005:contrast=1.005")
+
+    # Optional light film-grain noise
+    if apply_film_grain:
+        vf_options_list.append("noise=alls=6:allf=t")
+
+    # Apply playback speed adjustment via setpts (avoid grey-frame using STARTPTS)
+    if abs(playback_speed - 1.0) > 0.001:
+        vf_options_list.append(f"setpts=(PTS-STARTPTS)/{playback_speed}")
 
     vf_options = ",".join(vf_options_list)
 
@@ -161,13 +203,16 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         "-b:v", "6000k",
     ])
 
+    # Build audio filter
     if noise_audio_path:
         # [0:a] is main video's audio, [1:a] is noise audio
         # Process main audio: pitch shift and delay
         # Process noise audio: set volume very low
         # Mix them. duration=first ensures output lasts as long as the (trimmed) main video.
+        # Append atempo for playback speed if needed (valid 0.5-2.0 for our 0.9-1.1 range)
+        speed_audio_chain = f",atempo={playback_speed}" if abs(playback_speed - 1.0) > 0.001 else ""
         filter_complex_str = (
-            "[0:a]aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200[main_processed];"
+            "[0:a]aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200" + speed_audio_chain + "[main_processed];"
             "[1:a]volume=0.02[noise_quiet];"
             "[main_processed][noise_quiet]amix=inputs=2:duration=first[audio_out]"
         )
@@ -178,8 +223,11 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         ])
     else:
         # Original audio processing if no noise file
+        audio_chain = "aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200"
+        if abs(playback_speed - 1.0) > 0.001:
+            audio_chain += f",atempo={playback_speed}"
         command.extend([
-            "-filter:a", "aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200",
+            "-filter:a", audio_chain,
         ])
 
     command.extend([

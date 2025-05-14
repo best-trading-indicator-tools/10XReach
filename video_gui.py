@@ -7,6 +7,8 @@ import io # Import io for BytesIO
 
 from video_processor import get_ffmpeg_path, _execute_ffmpeg_command, compute_ssim_percent
 
+# python3 -m streamlit run video_gui.py
+
 st.set_page_config(page_title="10XReach Video Processor", page_icon="🎞️", layout="centered")
 
 st.title("🎞️ 10XReach Video Processor GUI")
@@ -64,14 +66,74 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
-# --- Processing Options ---
-st.subheader("Processing Options")
-horizontal_flip = st.checkbox("Horizontally flip video (same as --hflip)")
+# ----- Settings mode -----
+settings_mode = st.radio(
+    "Settings mode",
+    ("Universal settings for ALL videos", "Custom settings per video"),
+    horizontal=True,
+)
+
+# Flag for universal
+use_universal = settings_mode.startswith("Universal")
+
+# Constant used for default playback speed controls (declared early so UI widgets can use it)
+DEFAULT_SPEED = 1.0
+
+# ----- Universal settings UI -----
+if use_universal:
+    st.markdown("### Universal Settings (applied to every uploaded video)")
+
+    # Text overlay
+    st.checkbox("Add text overlay (all videos)", key="u_add_text")
+    if st.session_state.get("u_add_text"):
+        st.text_input("Text to display", key="u_text", value="Your Text Here")
+        st.selectbox(
+            "Text position",
+            ("Top Center", "Middle Center", "Bottom Center"),
+            index=2,
+            key="u_pos",
+        )
+        st.number_input("Font size", min_value=10, max_value=200, value=24, key="u_size")
+        st.text_input("Text color (e.g., white, #FF0000)", value="white", key="u_color")
+        st.text_input("Background color (e.g., black@0.5, none)", value="black@0.5", key="u_bg")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.checkbox("Bold", key="u_bold")
+        with col2:
+            st.checkbox("Italic", key="u_italic")
+
+    # Rotation
+    st.number_input(
+        "Rotation (degrees, all videos)",
+        min_value=-45.0,
+        max_value=45.0,
+        value=0.0,
+        step=0.5,
+        key="u_rotation",
+        help="Applies the same rotation to every clip.",
+    )
+
+    # Playback speed
+    st.slider(
+        "Playback speed (all videos)",
+        min_value=0.5,
+        max_value=1.5,
+        value=DEFAULT_SPEED,
+        step=0.01,
+        key="u_speed",
+    )
+
+    # Effects checkboxes
+    st.checkbox("Increase & randomise zoom + pan", key="u_zoom_pan")
+    st.checkbox("Add light film-grain noise", key="u_grain")
+    st.checkbox("Horizontally flip video", key="u_hflip")
+
+
 
 # ----------------------------
-# Per-video text overlay settings
+# Per-video settings
 # ----------------------------
-if uploaded_files:
+if uploaded_files and not use_universal:
     st.markdown("### Text Overlay Settings (per video)")
     for idx, file in enumerate(uploaded_files):
         with st.expander(f"Text settings for: {file.name}", expanded=True):
@@ -93,6 +155,35 @@ if uploaded_files:
                     st.checkbox("Bold", key=f"bold_{idx}")
                 with col2:
                     st.checkbox("Italic", key=f"italic_{idx}")
+            st.number_input(
+                "Rotation (degrees)",
+                min_value=-45.0, # Allow significant rotation
+                max_value=45.0,
+                value=0.0, # Default to 0 (no rotation)
+                step=0.5, # Allow fine-tuning
+                key=f"rotation_{idx}",
+                help="Rotates the video by the specified degrees. "
+                     "Positive values rotate clockwise, negative counter-clockwise. "
+                     "Even a small rotation (e.g., 0.5 to 2 degrees) can significantly "
+                     "alter the video's pixel structure, helping to lower SSIM scores and "
+                     "reduce detection as duplicate content. Rotated areas are filled with black."
+            )
+
+            # Per-video playback speed slider
+            st.slider(
+                "Playback speed (this video)",
+                min_value=0.5,
+                max_value=1.5,
+                value=DEFAULT_SPEED,
+                step=0.01,
+                key=f"speed_{idx}",
+                help="Set a unique playback speed for this clip (0.5–1.5×). Audio tempo is auto-corrected."
+            )
+
+            # New effects controls
+            st.checkbox("Increase & randomise zoom + pan", key=f"zoom_pan_{idx}")
+            st.checkbox("Add light film-grain noise", key=f"grain_{idx}")
+            st.checkbox("Horizontally flip video", key=f"hflip_{idx}")
 
 process_btn = st.button("Process Videos")
 
@@ -134,14 +225,34 @@ if process_btn:
             output_path = os.path.join(output_dir, f"tt_{filename}")
 
             # Retrieve overlay settings for this file
-            add_text = st.session_state.get(f"add_text_{idx-1}", False)
-            text_to_overlay = st.session_state.get(f"text_{idx-1}") if add_text else None
-            text_position = st.session_state.get(f"pos_{idx-1}") if add_text else None
-            font_size = st.session_state.get(f"size_{idx-1}") if add_text else None
-            text_color = st.session_state.get(f"color_{idx-1}") if add_text else None
-            text_bg_color = st.session_state.get(f"bg_{idx-1}") if add_text else None
-            text_bold = st.session_state.get(f"bold_{idx-1}", False) if add_text else False
-            text_italic = st.session_state.get(f"italic_{idx-1}", False) if add_text else False
+            if use_universal:
+                add_text = st.session_state.get("u_add_text", False)
+                text_to_overlay = st.session_state.get("u_text") if add_text else None
+                text_position = st.session_state.get("u_pos") if add_text else None
+                font_size = st.session_state.get("u_size") if add_text else None
+                text_color = st.session_state.get("u_color") if add_text else None
+                text_bg_color = st.session_state.get("u_bg") if add_text else None
+                text_bold = st.session_state.get("u_bold", False) if add_text else False
+                text_italic = st.session_state.get("u_italic", False) if add_text else False
+                rotation_degrees = st.session_state.get("u_rotation", 0.0)
+                horizontal_flip_local = st.session_state.get("u_hflip", False)
+                playback_speed_val = st.session_state.get("u_speed", DEFAULT_SPEED)
+                random_zoom_pan_val = st.session_state.get("u_zoom_pan", False)
+                apply_film_grain_val = st.session_state.get("u_grain", False)
+            else:
+                add_text = st.session_state.get(f"add_text_{idx-1}", False)
+                text_to_overlay = st.session_state.get(f"text_{idx-1}") if add_text else None
+                text_position = st.session_state.get(f"pos_{idx-1}") if add_text else None
+                font_size = st.session_state.get(f"size_{idx-1}") if add_text else None
+                text_color = st.session_state.get(f"color_{idx-1}") if add_text else None
+                text_bg_color = st.session_state.get(f"bg_{idx-1}") if add_text else None
+                text_bold = st.session_state.get(f"bold_{idx-1}", False) if add_text else False
+                text_italic = st.session_state.get(f"italic_{idx-1}", False) if add_text else False
+                rotation_degrees = st.session_state.get(f"rotation_{idx-1}", 0.0)
+                horizontal_flip_local = st.session_state.get(f"hflip_{idx-1}", False)
+                playback_speed_val = st.session_state.get(f"speed_{idx-1}", DEFAULT_SPEED)
+                random_zoom_pan_val = st.session_state.get(f"zoom_pan_{idx-1}", False)
+                apply_film_grain_val = st.session_state.get(f"grain_{idx-1}", False)
 
             st.write(f"Processing {filename} ...")
             # Execute FFmpeg for processing
@@ -151,14 +262,18 @@ if process_btn:
                 output_path,
                 filename,
                 noise_audio_path=noise_path,
-                horizontal_flip=horizontal_flip,
+                horizontal_flip=horizontal_flip_local,
                 text_to_overlay=text_to_overlay,
                 text_position=text_position,
                 font_size=font_size,
                 text_color=text_color,
                 text_bg_color=text_bg_color,
                 text_bold=text_bold,
-                text_italic=text_italic
+                text_italic=text_italic,
+                rotation_degrees=rotation_degrees, # rotation
+                playback_speed=playback_speed_val,
+                random_zoom_pan=random_zoom_pan_val,
+                apply_film_grain=apply_film_grain_val
             )
 
             # Compute SSIM similarity percentage if processing succeeded

@@ -182,6 +182,10 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
     grain_strength = random.randint(4, 8)
     vf_options_list.append(f"noise=alls={grain_strength}:allf=t")
 
+    # Automatic subtle lens distortion (barrel/pincushion). Random k1=k2 in 0.008–0.02
+    k_val = round(random.uniform(0.008, 0.02), 4)
+    vf_options_list.append(f"lenscorrection=k1={k_val}:k2={k_val}")
+
     # Apply playback speed adjustment via setpts (avoid grey-frame using STARTPTS)
     if abs(playback_speed - 1.0) > 0.001:
         vf_options_list.append(f"setpts=(PTS-STARTPTS)/{playback_speed}")

@@ -49,6 +49,8 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
     *   Applies a very slight brightness and contrast adjustment (`eq=brightness=0.005:contrast=1.005`) to subtly change the video's visual data.
     *   Performs a subtle 3 % centre-zoom (crop) to shift pixel positions enough to change TikTok's visual hash while remaining imperceptible to viewers.
     *   Adds a virtually invisible 2 × 2 px white dot in the top-left corner of every frame to further alter the bitmap without affecting user experience.
+    *   Applies a random **hue shift** of up to ±5 ° and injects light **film-grain noise** (strength 4-8) to perturb colour histograms and texture uniformly across the clip.
+    *   Applies a subtle **lens distortion** (`k1≈0.01`) to introduce barrel-style warping that is imperceptible on phone screens yet lowers frame similarity.
     *   **Horizontal Flip (Optional)**: Can horizontally flip the video using the `--hflip` command-line argument. This is another common technique to make content appear different to detection algorithms.
 9.  **Video Encoding**:
     *   Uses the `libx264` codec for video encoding, which is widely compatible.
@@ -194,48 +196,15 @@ Remember that TikTok also fingerprints **audio** and **metadata**. The script al
 
 **Quick guideline ▶︎ Aim for an average SSIM of ≤ 80 % (≈ 0.80) before uploading repurposed videos to TikTok.** Scores in the 70–80 % range are generally safe while preserving perceived quality.
 
-## Implementation Status
+### Default vs. optional parameters
 
-| Feature                    | Status      | Implementation Details                                                              |
-|----------------------------|-------------|-------------------------------------------------------------------------------------|
-| **Visual Changes**         |             |                                                                                     |
-| Resize to 1080x1920        | ✅ Done     | Resizes to 1080x1920 (9:16 vertical), pads if needed, sets SAR 1:1                   |
-| Crop/zoom frame            | ✅ Done     | Applies a dynamic Ken Burns zoom (1.0x to 1.1x over 29s) using `zoompan`            |
-| Add overlay text           | ✅ Done     | GUI: Per-video text, pos, size, color, bg-color, bold/italic styles                 |
-| Tweak color settings       | ✅ Done     | Slight brightness (0.005) & contrast (1.005) adjustments                            |
-| Flip video horizontally    | ✅ Done     | Optional via `--hflip` (CLI) or global GUI checkbox                                 |
-| Rotate video               | ✅ Done     | GUI: Per-video rotation (-45 to +45 degrees), fills with black                      |
-| Change playback speed      | ✅ Done     | Per-video slider (0.5–1.5×) in GUI; uses setpts & atempo, no grey-frame issue |
-| Add watermark/dot          | ✅ Done     | Adds 2x2px white dot (top-left); GUI offers advanced text overlay (see above)       |
-| Trim video duration        | ✅ Done     | Trims video to a maximum of 29 seconds                                              |
-| **Audio Changes**          |             |                                                                                     |
-| Shift audio pitch          | ✅ Done     | Pitch shifted up by ~3% (asetrate=SAMPLERATE*1.03, resamples)                      |
-| Add background noise       | ✅ Done     | Mixes `sounds/background_noise.mp3` if present, else auto-generates white noise     |
-| Use TikTok voiceover       | ❌ Not done | Not implemented; would require TikTok app integration                               |
-| Cut/offset audio           | ✅ Done     | Adds 200ms delay to audio track (adelay=200|200)                                   |
-| **Metadata Changes**       |             |                                                                                     |
-| Remove metadata            | ✅ Done     | Strips all metadata (`-map_metadata -1`)                                            |
-| Re-export video            | ✅ Done     | Fully re-encoded with libx264 (video) and aac (audio)                               |
+The script **always** applies a baseline set of safety tweaks (metadata wipe, resize/pad, slight brightness/contrast, random hue shift ±5 °, light film-grain noise, subtle lens distortion, micro Ken-Burns zoom 1.00 → 1.10, and a 2 × 2 px dot).  
+With only these defaults you can expect SSIM in the **90–95 %** range—enough for light uniqueness without visible degradation.  
 
-## Interpreting the SSIM Score (GUI)
+To push SSIM lower (≈ 60-80 %) enable one or more of the following in the GUI:  
+• Increase the **End zoom scale** slider (e.g. 1.15 – 1.25).  
+• Add a small **rotation** (0.5–2 ° is usually plenty).  
+• **Horizontally flip** the video.  
+• Overlay text/watermark or change playback **speed**.  
 
-When you process videos via `video_gui.py` a **SSIM** (%) column appears for each file:
-
-* **SSIM (Structural Similarity Index)** compares every frame of the original input against the processed output, then averages the results.
-* The GUI rescales both videos to 1080 × 1920 first, so we always compare like-for-like frames.
-* The value is reported as a **percentage**:
-  * **≈ 100 %**  → virtually identical (barely altered).
-  * **90 – 95 %**  → minor visual changes only (consider adding rotation or text overlay if aiming lower).
-  * **80 – 90 %**  → moderate changes (good starting point; using rotation of 0.5-2 degrees often lands here or lower).
-  * **< 80 %**    → significant visual difference (lowest chance of duplicate-content flags; achieved with zoom + rotation).
-
-### What score should I aim for?
-TikTok's exact thresholds are unknown, but anecdotal evidence suggests:
-
-* **≥ 95 %**: Too high – platform likely treats it as the same clip.
-* **≈ 80–90 %**: Usually acceptable. To increase uniqueness, consider adding a slight rotation (0.5-2 degrees via the GUI) or enabling text overlay if not already used.
-* **< 80 %**: Safe zone for most duplicate-detection systems. With the default Ken Burns zoom and a small rotation, scores often fall into this range or lower.
-
-Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice, especially if rotation or text overlays are also applied.
-
-> **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. Using the rotation feature is a good way to push scores lower. 
+Combining two or three of these options typically lands well below the 80 % threshold while keeping quality high. Feel free to experiment; the SSIM column updates per file so you can see the effect immediately. 

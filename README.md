@@ -1,5 +1,32 @@
 # 10XReach - TikTok Video Processor
 
+TikTok detects duplicates better than you think 
+
+Here's how to beat the system 🧵
+
+– File hash: every file has a digital fingerprint. If you upload the exact same file (no edits), TikTok can detect it instantly by comparing the hash.
+– Visual/audio fingerprinting: TikTok uses AI to analyze frames and audio. Even if you cut 1 second or add text, it can still recognize the content.
+– Metadata: things like creation date, device name, or codec can give clues. These are easy to change though, so they're not the main method.
+– Audio matching: if your video uses a soundtrack or voice already on the platform, TikTok can detect it through audio fingerprinting.
+
+How to avoid detection (aka not get flagged as a duplicate):
+
+– Slightly crop or zoom the frame (e.g. zoom to 103%)
+– Add overlay text (even a single invisible or tiny word)
+– Use filters or tweak color settings (contrast, saturation, etc.)
+– Change playback speed just a bit (e.g. 0.95x or 1.05x)
+– Add a small watermark or dot in a corner
+
+– Shift the audio pitch up/down slightly
+– Add background noise (ambient sounds, white noise, etc.)
+– Use TikTok's voiceover feature for a few seconds
+– Cut or offset the audio by 0.2s to break the pattern
+
+– Re-export the video using CapCut, Premiere, etc.
+– Edit the metadata using tools like HandBrake or InShot
+
+To avoid detection: modify at least 2-3 layers (visual, audio, metadata). Don't just trim a second or flip the video, go deeper.
+
 This repository contains a Python script (`video_processor.py`) designed to process video files (e.g., downloaded from platforms like Instagram or TikTok) to prepare them for re-uploading to these or other platforms. The primary goal is to make these videos technically unique, which can help reduce the risk of being flagged or "shadowbanned" for being simple re-uploads, regardless of the source or destination platform (e.g., Instagram to TikTok, TikTok to Instagram, TikTok to TikTok, Instagram to Instagram).
 
 ## How it Works & Features Implemented
@@ -23,18 +50,19 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
 9.  **Video Encoding**:
     *   Uses the `libx264` codec for video encoding, which is widely compatible.
     *   Sets an explicit video bitrate of `6000k` (`-b:v 6000k`) to ensure consistent quality and a different video stream signature than a default transcode.
-10. **Audio Re-encoding**:
+10. **Audio Re-encoding & Manipulation**:
     *   Re-encodes the audio stream to the AAC (Advanced Audio Coding) codec (`-c:a aac`).
-    *   Sets an audio bitrate of `192k` (`-b:a 192k`) for good quality stereo audio. This makes the audio stream technically different from the original.
-    *   Applies a slight pitch shift (~3 %) via `asetrate`/`aresample`, so the audio fingerprint no longer matches the source while leaving the tempo intact.
+    *   Sets an audio bitrate of `192k` (`-b:a 192k`) for good quality stereo audio.
+    *   Applies a slight pitch shift (~3 %) via `asetrate`/`aresample` to alter the audio fingerprint without changing tempo.
     *   Offsets the audio track by 200 ms (`adelay`) to further break direct alignment with original material.
+    *   **Optional Background Noise**: Can mix an external audio file as very low-volume background noise using the `--noise_file` argument. This adds another layer of audio uniqueness. The noise audio is looped and its volume is significantly reduced.
 11. **Cross-Platform Compatibility**: The script is designed to be compatible with both macOS and Windows, provided Python 3 and FFmpeg are correctly installed and accessible. It includes logic to try and find the FFmpeg executable.
 
 ## Why These Steps Are Useful
 
 Social media platforms like TikTok use algorithms to detect and sometimes deprioritize content that appears to be a direct, unaltered re-upload from other platforms or sources. By systematically modifying various technical aspects of the video, this script helps to:
 
-*   **Create a Unique File Signature**: Changing metadata, resolution, bitrate, encoding parameters for both video and audio, and duration results in a file that is technically different from the original.
+*   **Create a Unique File Signature**: Changing metadata, resolution, bitrate, encoding parameters for both video and audio, duration, and optionally adding subtle background noise results in a file that is technically different from the original.
 *   **Reduce Automated Detection**: These alterations can make it less likely for automated systems to flag the video as a simple duplicate.
 *   **Optimize for TikTok**: Resizing to the preferred 9:16 aspect ratio ensures the video looks good on the platform.
 
@@ -58,6 +86,14 @@ While no script can guarantee that a video won't be subject to platform algorith
         ```bash
         python3 video_processor.py -f my_video.mp4
         ```
+    *   To process a specific video and mix in background noise from `sounds/background_noise.mp3`:
+        ```bash
+        python3 video_processor.py -f my_video.mp4 --noise_file sounds/background_noise.mp3
+        ```
+    *   To process all videos and mix in background noise:
+        ```bash
+        python3 video_processor.py --noise_file sounds/background_noise.mp3
+        ```
 4.  **Output**:
     *   The processed videos will be saved in a folder named `treated/`, with each filename prefixed by `tt_`.
 
@@ -68,4 +104,5 @@ This script was developed iteratively, adding features based on common requireme
 *   Enhanced to include slight visual adjustments (brightness/contrast) and explicit video bitrate.
 *   Further improved by adding audio re-encoding instead of just copying the audio stream.
 *   Made more user-friendly by adding command-line options for single-file processing and auto-clearing of the output directory.
+*   Added optional background noise mixing for further audio differentiation.
 *   Addressed and fixed bugs, such as an initial gray screen issue caused by a previous speed adjustment filter (which has since been removed). 

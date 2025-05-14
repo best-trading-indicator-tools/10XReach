@@ -33,29 +33,51 @@ def get_ffmpeg_path():
     return "ffmpeg"
 
 
-def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename_for_log):
+def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename_for_log, noise_audio_path=None):
     """Helper function to construct and run the FFmpeg command for a single file."""
-    # FFmpeg command construction (as previously defined)
-    # -vf: scale, pad, setsar, eq (brightness/contrast)
-    # -t 29: Trim
-    # -c:v libx264, -b:v 6000k: Video codec and bitrate
-    # -c:a aac -b:a 192k: Audio re-encode to AAC at 192kbps
-    # -map_metadata -1: Remove metadata
-    # -y: Overwrite output
     command = [
         ffmpeg_executable,
         "-i", input_path,
+    ]
+
+    if noise_audio_path:
+        command.extend(["-stream_loop", "-1", "-i", noise_audio_path])
+
+    command.extend([
         "-map_metadata", "-1",
         "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,crop=iw*0.97:ih*0.97:(iw - iw*0.97)/2:(ih - ih*0.97)/2,drawbox=x=2:y=2:w=2:h=2:color=white@0.9:t=fill,setsar=1,eq=brightness=0.005:contrast=1.005",
-        "-t", "29",
+        "-t", "29", # Trim output to 29 seconds
         "-c:v", "libx264",
         "-b:v", "6000k",
-        "-filter:a", "aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200",
+    ])
+
+    if noise_audio_path:
+        # [0:a] is main video's audio, [1:a] is noise audio
+        # Process main audio: pitch shift and delay
+        # Process noise audio: set volume very low
+        # Mix them. duration=first ensures output lasts as long as the (trimmed) main video.
+        filter_complex_str = (
+            "[0:a]aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200[main_processed];"
+            "[1:a]volume=0.02[noise_quiet];"
+            "[main_processed][noise_quiet]amix=inputs=2:duration=first[audio_out]"
+        )
+        command.extend([
+            "-filter_complex", filter_complex_str,
+            "-map", "0:v",      # Map video from the first input
+            "-map", "[audio_out]", # Map audio from the filter_complex output
+        ])
+    else:
+        # Original audio processing if no noise file
+        command.extend([
+            "-filter:a", "aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200",
+        ])
+
+    command.extend([
         "-c:a", "aac",
         "-b:a", "192k",
         "-y",
         output_path
-    ]
+    ])
 
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
@@ -73,10 +95,11 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         # This error is critical, so we might want to indicate a halt
         raise # Re-raise to be caught by the main processing loop if needed
 
-def process_videos(input_folder, output_folder, ffmpeg_executable, specific_filename=None):
+def process_videos(input_folder, output_folder, ffmpeg_executable, specific_filename=None, noise_audio_path=None):
     """
     Processes videos in the input folder and saves them to the output folder.
     If specific_filename is provided, only that file (within input_folder) is processed.
+    If noise_audio_path is provided, it will be mixed into the output.
     """
     files_to_process = []
     if specific_filename:
@@ -112,8 +135,10 @@ def process_videos(input_folder, output_folder, ffmpeg_executable, specific_file
         output_path = os.path.join(output_folder, output_filename)
 
         print(f"Processing '{filename}'...")
+        if noise_audio_path:
+            print(f"Mixing with background noise: {noise_audio_path}")
         try:
-            if _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename):
+            if _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename, noise_audio_path=noise_audio_path):
                 processed_count += 1
             else:
                 skipped_count += 1
@@ -128,8 +153,9 @@ def process_videos(input_folder, output_folder, ffmpeg_executable, specific_file
     return processed_count, skipped_count
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Process videos for TikTok. Removes metadata, resizes, trims, and optionally adjusts visuals.")
+    parser = argparse.ArgumentParser(description="Process videos for TikTok. Removes metadata, resizes, trims, and optionally adjusts visuals and audio.")
     parser.add_argument("-f", "--file", type=str, help="Filename of a specific video to process (must be in the input folder). Processes all .mp4 files if not specified.")
+    parser.add_argument("--noise_file", type=str, help="Path to an audio file to mix in as very low volume background noise.")
     args = parser.parse_args()
 
     input_video_folder = "videos"
@@ -168,7 +194,11 @@ if __name__ == "__main__":
         print(f"Warning: Input folder '{input_video_folder}' not found, but a specific file was requested. Assuming it's accessible.")
         # The check for specific file existence is now inside process_videos
 
-    processed_count, skipped_count = process_videos(input_video_folder, output_video_folder, ffmpeg_path, specific_filename=args.file)
+    if args.noise_file and not os.path.isfile(args.noise_file):
+        print(f"Warning: Noise file '{args.noise_file}' not found. Proceeding without background noise.")
+        args.noise_file = None # Process without noise if file not found
+
+    processed_count, skipped_count = process_videos(input_video_folder, output_video_folder, ffmpeg_path, specific_filename=args.file, noise_audio_path=args.noise_file)
 
     print(f"\nProcessing complete.")
     print(f"Successfully processed: {processed_count} files.")

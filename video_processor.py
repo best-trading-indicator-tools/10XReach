@@ -7,10 +7,12 @@ import argparse # Added for command-line arguments
 # Potential font paths - adjust as needed or ensure font.ttf is in the project root
 FONT_FILE_PATH_MACOS_SYSTEM = "/System/Library/Fonts/Helvetica.ttc"
 FONT_FILE_PATH_WINDOWS_SYSTEM = "C:/Windows/Fonts/arial.ttf"
-FONT_FILE_PROJECT_ROOT = "font.ttf"
-FONT_FILE_BOLD = "font-bold.ttf"
-FONT_FILE_ITALIC = "font-italic.ttf"
-FONT_FILE_BOLD_ITALIC = "font-bolditalic.ttf"
+# Updated font paths to target specific Roboto static files
+FONT_DIR = "fonts/Roboto/static/"
+FONT_FILE_REGULAR = os.path.join(FONT_DIR, "Roboto-Regular.ttf")
+FONT_FILE_BOLD = os.path.join(FONT_DIR, "Roboto-Bold.ttf")
+FONT_FILE_ITALIC = os.path.join(FONT_DIR, "Roboto-Italic.ttf")
+FONT_FILE_BOLD_ITALIC = os.path.join(FONT_DIR, "Roboto-BoldItalic.ttf")
 
 def get_ffmpeg_path():
     """Detects FFmpeg path based on OS or prompts user if not found."""
@@ -42,29 +44,33 @@ def get_ffmpeg_path():
 
 def get_font_path(is_bold=False, is_italic=False):
     """Attempts to find a suitable font file based on style."""
-    font_to_try = []
-    specific_style_found = False
+    font_to_use = None
+    style_description = "regular"
 
     if is_bold and is_italic:
-        font_to_try.append(FONT_FILE_BOLD_ITALIC)
+        style_description = "bold italic"
+        if os.path.isfile(FONT_FILE_BOLD_ITALIC):
+            font_to_use = FONT_FILE_BOLD_ITALIC
     elif is_bold:
-        font_to_try.append(FONT_FILE_BOLD)
+        style_description = "bold"
+        if os.path.isfile(FONT_FILE_BOLD):
+            font_to_use = FONT_FILE_BOLD
     elif is_italic:
-        font_to_try.append(FONT_FILE_ITALIC)
+        style_description = "italic"
+        if os.path.isfile(FONT_FILE_ITALIC):
+            font_to_use = FONT_FILE_ITALIC
+
+    if font_to_use: # Specific styled font found
+        # print(f"Using styled font: {font_to_use}") # For debugging
+        return font_to_use
     
-    # Check for specifically styled fonts first
-    for f_style in font_to_try:
-        if os.path.isfile(f_style):
-            # print(f"Using styled font: {f_style}") # For debugging
-            return f_style
+    # Fallback to regular Roboto if styled version wasn't found or not requested
+    if os.path.isfile(FONT_FILE_REGULAR):
+        if style_description != "regular":
+            print(f"Warning: Roboto {style_description} font ({FONT_FILE_BOLD_ITALIC if style_description == 'bold italic' else (FONT_FILE_BOLD if style_description == 'bold' else FONT_FILE_ITALIC)}) not found in '{FONT_DIR}'. Falling back to {FONT_FILE_REGULAR}.")
+        return FONT_FILE_REGULAR
 
-    # Fallback to regular project font
-    if os.path.isfile(FONT_FILE_PROJECT_ROOT):
-        if font_to_try: # If a style was requested but not found
-            print(f"Warning: Styled font for bold={is_bold}, italic={is_italic} not found (e.g., {font_to_try[0]}). Falling back to {FONT_FILE_PROJECT_ROOT}.")
-        return FONT_FILE_PROJECT_ROOT
-
-    # Fallback to system fonts
+    # Fallback to system fonts if no Roboto fonts are found
     system_font = None
     if platform.system() == "Darwin": # macOS
         if os.path.isfile(FONT_FILE_PATH_MACOS_SYSTEM):
@@ -74,15 +80,12 @@ def get_font_path(is_bold=False, is_italic=False):
             system_font = FONT_FILE_PATH_WINDOWS_SYSTEM
     
     if system_font:
-        if font_to_try: # If a style was requested but not found, and project font.ttf also not found
-            print(f"Warning: Styled font (e.g., {font_to_try[0]}) and {FONT_FILE_PROJECT_ROOT} not found. Falling back to system font: {system_font}.")
-        elif not os.path.isfile(FONT_FILE_PROJECT_ROOT):
-             print(f"Warning: {FONT_FILE_PROJECT_ROOT} not found. Falling back to system font: {system_font}.")
+        print(f"Warning: Roboto fonts not found in '{FONT_DIR}'. Falling back to system font: {system_font}.")
         return system_font
 
-    print(f"Warning: No specific or common font files found (tried: {', '.join(font_to_try) if font_to_try else 'none'}, {FONT_FILE_PROJECT_ROOT}, system defaults).")
+    print(f"Warning: No Roboto or common system font files found. Searched in '{FONT_DIR}'.")
     print("Drawtext filter might use a basic FFmpeg default font or fail if none is found by FFmpeg.")
-    print(f"For best results and styling, place appropriate .ttf files (e.g., {FONT_FILE_PROJECT_ROOT}, {FONT_FILE_BOLD}, {FONT_FILE_ITALIC}) in your project directory.")
+    print(f"Please ensure Roboto font files (e.g., {FONT_FILE_REGULAR}, {FONT_FILE_BOLD}, etc.) are in '{FONT_DIR}'.")
     return None # Let FFmpeg try to find a default
 
 def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename_for_log, noise_audio_path=None, horizontal_flip=False,
@@ -297,7 +300,25 @@ if __name__ == "__main__":
         actual_noise_path = default_noise_path
         print(f"Default background noise file found: {actual_noise_path}. It will be used.")
     else:
-        print(f"Default background noise file not found at '{default_noise_path}'. Proceeding without background noise.")
+        # Generate white noise using FFmpeg if no file exists
+        temp_noise_path = os.path.join(output_video_folder, "temp_noise.mp3")
+        try:
+            # Create 30 seconds of white noise (already at low volume)
+            noise_cmd = [
+                ffmpeg_path,
+                "-f", "lavfi",
+                "-i", "anoisesrc=amplitude=0.05:color=white:duration=30",
+                "-c:a", "libmp3lame",
+                "-b:a", "128k",
+                "-y",
+                temp_noise_path
+            ]
+            subprocess.run(noise_cmd, check=True, capture_output=True)
+            actual_noise_path = temp_noise_path
+            print(f"No background noise file found. Generated low-volume white noise.")
+        except Exception as e:
+            print(f"Failed to generate white noise: {e}")
+            print("Proceeding without background noise.")
 
     processed_count, skipped_count = process_videos(input_video_folder, output_video_folder, ffmpeg_path, specific_filename=args.file, noise_audio_path=actual_noise_path, horizontal_flip=args.hflip)
 
@@ -306,4 +327,13 @@ if __name__ == "__main__":
     print(f"Skipped/Failed: {skipped_count} files.")
     if skipped_count > 0:
         print("Check the console output above for error details on failed files.")
-    print(f"Cleaned videos are in: {output_video_folder}") 
+    print(f"Cleaned videos are in: {output_video_folder}")
+    
+    # Clean up temporary noise file if it was created
+    temp_noise_path = os.path.join(output_video_folder, "temp_noise.mp3")
+    if os.path.exists(temp_noise_path):
+        try:
+            os.remove(temp_noise_path)
+            print("Temporary noise file removed.")
+        except Exception as e:
+            print(f"Failed to remove temporary noise file: {e}") 

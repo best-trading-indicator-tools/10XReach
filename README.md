@@ -58,7 +58,7 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
     *   Sets an audio bitrate of `192k` (`-b:a 192k`) for good quality stereo audio.
     *   Applies a slight pitch shift (~3 %) via `asetrate`/`aresample` to alter the audio fingerprint without changing tempo.
     *   Offsets the audio track by 200 ms (`adelay`) to further break direct alignment with original material.
-    *   **Automatic Background Noise**: If a file named `background_noise.mp3` exists in the `sounds/` directory, it is automatically mixed in as very low-volume background noise. This adds another layer of audio uniqueness. The noise audio is looped and its volume is significantly reduced. If the file is not found, processing continues without background noise.
+    *   **Automatic Background Noise**: If a file named `background_noise.mp3` exists in the `sounds/` directory, it is automatically mixed in as very low-volume background noise. This adds another layer of audio uniqueness. The noise audio is looped and its volume is significantly reduced. If the file is not found, the script automatically generates a low-volume white noise track that serves the same purpose, ensuring all videos have this audio uniqueness feature applied.
 11. **Cross-Platform Compatibility**: The script is designed to be compatible with both macOS and Windows, provided Python 3 and FFmpeg are correctly installed and accessible. It includes logic to try and find the FFmpeg executable.
 12. **Graphical User Interface (GUI)**: A `video_gui.py` script using Streamlit provides a user-friendly way to interact with the video processor. Features include:
     *   Drag-and-drop uploading of up to 10 `.mp4` video files at a time (default was 5, updated to 10 as per current GUI code).
@@ -70,7 +70,7 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
         *   Define font size.
         *   Specify text color.
         *   Set a background color for the text (can be semi-transparent or "none").
-        *   Choose text style: **Bold** and/or **Italic**. (Requires providing corresponding font files like `font-bold.ttf`, `font-italic.ttf` in the project root for reliable styling; see Font Handling section).
+        *   Choose text style: **Bold** and/or **Italic**. (Requires providing Roboto static font files in the `fonts/Roboto/static/` directory for reliable styling; see Font Handling section).
     *   Progress bar during processing.
     *   Download a `.zip` file containing all processed videos.
 
@@ -93,7 +93,7 @@ While no script can guarantee that a video won't be subject to platform algorith
         ```bash
         pip install -r requirements.txt
         ```
-    *   **Optional Background Noise File**: To enable automatic background noise mixing, create a `sounds/` directory in the same location as the script, and place an audio file named `background_noise.mp3` inside it.
+    *   **Optional Background Noise File**: To enable custom background noise mixing, create a `sounds/` directory in the same location as the script, and place an audio file named `background_noise.mp3` inside it. If no custom noise file is provided, the script will automatically generate a subtle white noise track.
 2.  **Setup**:
     *   Place the `.mp4` video files you want to process into a folder named `videos/` in the same directory as the `video_processor.py` script (this is mainly for the command-line version, the GUI uses direct uploads).
 3.  **Running the Application**:
@@ -103,12 +103,12 @@ While no script can guarantee that a video won't be subject to platform algorith
     **A) Using the Graphical User Interface (Recommended for ease of use):**
     *   Open your terminal or command prompt.
     *   Navigate to the project directory.
-    *   **Font Handling for Text Overlays (Important!):** For best results with text overlays, especially for **Bold** and **Italic** styles, place the corresponding `.ttf` (TrueType Font) files in the root of your project directory:
-        *   `font.ttf` (for regular text)
-        *   `font-bold.ttf` (for bold text)
-        *   `font-italic.ttf` (for italic text)
-        *   `font-bolditalic.ttf` (for bold and italic text)
-        If these specific files are not found, the script will attempt to use system default fonts (like Helvetica on macOS or Arial on Windows), which may not support all styles or look as intended. The script will provide warnings in the console if it cannot find the requested styled fonts.
+    *   **Font Handling for Text Overlays (Important!):** For best results with text overlays, especially for **Bold** and **Italic** styles using the default Roboto font, ensure you have the following static `.ttf` (TrueType Font) files in the `fonts/Roboto/static/` subfolder of your project:
+        *   `Roboto-Regular.ttf` (for regular text)
+        *   `Roboto-Bold.ttf` (for bold text)
+        *   `Roboto-Italic.ttf` (for italic text)
+        *   `Roboto-BoldItalic.ttf` (for bold and italic text)
+        These files should be obtained from a font provider like Google Fonts (download the "static" versions, not variable fonts for this purpose). If these specific files are not found, the script will attempt to use system default fonts (like Helvetica on macOS or Arial on Windows), which may not support all styles or look as intended. The script will provide warnings in the console if it cannot find the requested styled Roboto fonts.
     *   Run the GUI:
         ```bash
         python3 -m streamlit run video_gui.py

@@ -1,0 +1,49 @@
+TikTok detects duplicates better than you think 
+
+here's how to beat the system 🧵
+
+– File hash: every file has a digital fingerprint. If you upload the exact same file (no edits), TikTok can detect it instantly by comparing the hash.
+– Visual/audio fingerprinting: TikTok uses AI to analyze frames and audio. Even if you cut 1 second or add text, it can still recognize the content.
+– Metadata: things like creation date, device name, or codec can give clues. These are easy to change though, so they're not the main method.
+– Audio matching: if your video uses a soundtrack or voice already on the platform, TikTok can detect it through audio fingerprinting.
+
+How to avoid detection (aka not get flagged as a duplicate):
+
+– Slightly crop or zoom the frame (e.g. zoom to 103%)
+– Add overlay text (even a single invisible or tiny word)
+– Use filters or tweak color settings (contrast, saturation, etc.)
+– Flip the video horizontally
+– Change playback speed just a bit (e.g. 0.95x or 1.05x)
+– Add a small watermark or dot in a corner
+
+– Shift the audio pitch up/down slightly
+– Add background noise (ambient sounds, white noise, etc.)
+– Use TikTok's voiceover feature for a few seconds
+– Cut or offset the audio by 0.2s to break the pattern
+
+– Re-export the video using CapCut, Premiere, etc.
+– Edit the metadata using tools like HandBrake or InShot
+
+To avoid detection: modify at least 2-3 layers (visual, audio, metadata). Don't just trim a second or flip the video, go deeper.
+
+====================================================================================================
+IMPLEMENTATION STATUS
+====================================================================================================
+
+| Feature                    | Status      | Implementation Details                                  |
+|----------------------------|-------------|--------------------------------------------------------|
+| **Visual Changes**         |             |                                                        |
+| Crop/zoom frame            | ✅ Done     | Crops 3% from each edge (crop=iw*0.97:ih*0.97)         |
+| Add overlay text           | ✅ Done     | Supports text with customizable position, size, color   |
+| Tweak color settings       | ✅ Done     | Slight brightness/contrast adjustments                  |
+| Flip video horizontally    | ✅ Done     | Optional via --hflip command line argument              |
+| Change playback speed      | ❌ Not done | Not implemented (though audio pitch is shifted)         |
+| Add watermark/dot          | ⚠️ Partial  | Can add text, but no specific watermark function        |
+| **Audio Changes**          |             |                                                        |
+| Shift audio pitch          | ✅ Done     | Pitch shifted up by 3% (asetrate=48000*1.03)           |
+| Add background noise       | ✅ Done     | Supports mixing in background noise file at low volume  |
+| Use TikTok voiceover       | ❌ Not done | Would require TikTok app integration                    |
+| Cut/offset audio           | ✅ Done     | Adds 200ms delay to audio (adelay=200|200)             |
+| **Metadata Changes**       |             |                                                        |
+| Remove metadata            | ✅ Done     | Strips all metadata (-map_metadata -1)                  |
+| Re-export video            | ✅ Done     | Output is fully re-encoded with libx264 and aac         |

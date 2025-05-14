@@ -17,16 +17,23 @@ st.markdown(
     <style>
     /* Increase the height and padding of the file uploader dropzone */
     div[data-testid="stFileUploadDropzone"] {
-        min-height: 300px !important; /* larger drop area */
+        min-height: 450px !important; /* larger drop area - increased from 300px */
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 2px dashed rgba(0, 0, 0, 0.2);
+        border: 3px dashed rgba(0, 0, 0, 0.3);
         background-color: rgba(0, 0, 0, 0.02);
-        padding: 40px !important;
+        padding: 60px !important; /* increased from 40px */
+        border-radius: 10px;
     }
     div[data-testid="stFileUploadDropzone"] > section {
         height: 100% !important; /* ensure inner section fills the container */
+        width: 100% !important; /* ensure inner section fills the container width */
+    }
+    /* Make the text larger and more visible */
+    div[data-testid="stFileUploadDropzone"] label {
+        font-size: 1.2em !important;
+        font-weight: bold !important;
     }
     </style>
     """,

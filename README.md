@@ -18,6 +18,8 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
 7.  **Video Trimming**: Trims videos to a maximum duration of 29 seconds (`-t 29`), adhering to common short-form video limits and further altering the file from its original.
 8.  **Visual Adjustments**:
     *   Applies a very slight brightness and contrast adjustment (`eq=brightness=0.005:contrast=1.005`) to subtly change the video's visual data.
+    *   Performs a subtle 3 % centre-zoom (crop) to shift pixel positions enough to change TikTok's visual hash while remaining imperceptible to viewers.
+    *   Adds a virtually invisible 2 × 2 px white dot in the top-left corner of every frame to further alter the bitmap without affecting user experience.
 9.  **Video Encoding**:
     *   Uses the `libx264` codec for video encoding, which is widely compatible.
     *   Sets an explicit video bitrate of `6000k` (`-b:v 6000k`) to ensure consistent quality and a different video stream signature than a default transcode.

@@ -46,7 +46,7 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         ffmpeg_executable,
         "-i", input_path,
         "-map_metadata", "-1",
-        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,eq=brightness=0.005:contrast=1.005",
+        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,crop=iw*0.97:ih*0.97:(iw - iw*0.97)/2:(ih - ih*0.97)/2,drawbox=x=2:y=2:w=2:h=2:color=white@0.9:t=fill,setsar=1,eq=brightness=0.005:contrast=1.005",
         "-t", "29",
         "-c:v", "libx264",
         "-b:v", "6000k",

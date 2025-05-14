@@ -233,5 +233,11 @@ This table summarizes the features suggested in the `specs` document and their c
 |                      | Add background noise                      | ✅ Implemented    | Automatic: Mixes `sounds/background_noise.mp3` or generated white noise.                                                              |
 |                      | Use TikTok's voiceover feature          | ❌ Not Implemented | Requires TikTok app integration or separate audio track generation/mixing, which is outside the current script's scope.             |
 |                      | Cut or offset the audio by 0.2s         | ✅ Implemented    | Automatic: Audio delayed by 200ms (`adelay`).                                                                                       |
+| **From SSIM Plan**   | Randomised X/Y Pan Path (Zoompan)       | 🟡 Partially Done | GUI-driven zoom uses random X/Y *offsets*, but default zoom is center-panned. Plan suggested more dynamic pan path.                  |
+|                      | "Uniqueness Strength" Knob (GUI)        | ❌ Not Implemented | A single slider to scale multiple effects (zoom, rotation, hue, noise) as per `ssim_score_improvement.md` MVP.                       |
+|                      | Stronger Brightness/Contrast Options    | ❌ Not Implemented | Plan mentioned `eq` ±2–3% as high-leverage; current is fixed at +0.5%. Not a GUI option yet.                                        |
+|                      | Specific GUI Rotation Limits & Default  | ❌ Not Implemented | Plan suggested GUI rotation slider limited to ±1° (default 0.7°); current is ±45° (default 0°).                                    |
+|                      | Temporal Jitter (Frame Drop/Duplication)| ❌ Not Implemented | Stretch Idea: `minterpolate`, `tblend` to drop/duplicate 1-2% of frames.                                                            |
+|                      | Per-Frame Random Grain Mask             | ❌ Not Implemented | Stretch Idea: Procedurally generate 2-frame-periodic random noise.                                                                  |
 
 *Features listed under "Status in Project" as "Automatic" are applied to all videos by default without needing user input. Others are available via GUI or CLI options.* 

@@ -26,6 +26,8 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
 10. **Audio Re-encoding**:
     *   Re-encodes the audio stream to the AAC (Advanced Audio Coding) codec (`-c:a aac`).
     *   Sets an audio bitrate of `192k` (`-b:a 192k`) for good quality stereo audio. This makes the audio stream technically different from the original.
+    *   Applies a slight pitch shift (~3 %) via `asetrate`/`aresample`, so the audio fingerprint no longer matches the source while leaving the tempo intact.
+    *   Offsets the audio track by 200 ms (`adelay`) to further break direct alignment with original material.
 11. **Cross-Platform Compatibility**: The script is designed to be compatible with both macOS and Windows, provided Python 3 and FFmpeg are correctly installed and accessible. It includes logic to try and find the FFmpeg executable.
 
 ## Why These Steps Are Useful

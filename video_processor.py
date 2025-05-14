@@ -50,6 +50,7 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         "-t", "29",
         "-c:v", "libx264",
         "-b:v", "6000k",
+        "-filter:a", "aresample=48000,asetrate=48000*1.03,aresample=48000,adelay=200|200",
         "-c:a", "aac",
         "-b:a", "192k",
         "-y",

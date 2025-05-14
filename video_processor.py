@@ -98,7 +98,8 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
                             rotation_degrees=0.0,
                             playback_speed=1.0,
                             random_zoom_pan=False,
-                            apply_film_grain=False):
+                            apply_film_grain=False,
+                            zoom_end_scale=None):
     """Helper function to construct and run the FFmpeg command for a single file."""
     command = [
         ffmpeg_executable,
@@ -113,10 +114,30 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
     ]
 
-    # Ken Burns / Zoom-pan. If random_zoom_pan is enabled, use a stronger zoom and randomised pan path.
-    if random_zoom_pan:
+    # Ken Burns / Zoom-pan.
+
+    # Priority: if a specific zoom_end_scale (>1.0) is supplied (e.g., via GUI slider), honour it.
+    # Otherwise fall back to the old behaviour controlled by random_zoom_pan boolean flag.
+
+    if zoom_end_scale and zoom_end_scale > 1.0001:
+        # Use the provided zoom_end_scale, but still randomise the pan path for variety
+        zoom_end = min(max(1.01, zoom_end_scale), 2.00)  # Clamp sensibly
+        zoom_increment = (zoom_end - 1.0) / (29 * 30)  # per-frame increment (~30 fps, 29 s)
+
+        # Random pan offsets up to ±30 % of the available area so we avoid static centre crop
+        pan_offset_x = random.choice([-1, 1]) * random.uniform(0.0, 0.3)
+        pan_offset_y = random.choice([-1, 1]) * random.uniform(0.0, 0.3)
+
+        x_expr = f"(iw/2-(iw/zoom/2))+{pan_offset_x:.4f}*(iw - iw/zoom)"
+        y_expr = f"(ih/2-(ih/zoom/2))+{pan_offset_y:.4f}*(ih - ih/zoom)"
+
+        vf_options_list.append(
+            f"zoompan=z='min(max(1,zoom)+{zoom_increment:.6f},{zoom_end:.2f})':x='{x_expr}':y='{y_expr}':s=1080x1920:d=1:fps=30"
+        )
+
+    elif random_zoom_pan:
         # Random final zoom between 1.12 and 1.18 (≈12–18 %)
-        zoom_end = random.uniform(1.12, 1.18)
+        zoom_end = random.uniform(1.12, 2.00)
         zoom_increment = (zoom_end - 1.0) / (29 * 30)  # per-frame increment assuming 30 fps
 
         # Random pan offsets: up to ±30 % of available pan range along each axis
@@ -153,9 +174,13 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
     vf_options_list.append("setsar=1")
     vf_options_list.append("eq=brightness=0.005:contrast=1.005")
 
-    # Optional light film-grain noise
-    if apply_film_grain:
-        vf_options_list.append("noise=alls=6:allf=t")
+    # Automatic subtle hue shift (±5°). The user doesn't need to set anything.
+    hue_shift_deg = random.uniform(-5.0, 5.0)
+    vf_options_list.append(f"hue=h={hue_shift_deg:.2f}*PI/180:s=1")
+
+    # Automatic light film-grain noise (random strength 4–8) to further lower SSIM
+    grain_strength = random.randint(4, 8)
+    vf_options_list.append(f"noise=alls={grain_strength}:allf=t")
 
     # Apply playback speed adjustment via setpts (avoid grey-frame using STARTPTS)
     if abs(playback_speed - 1.0) > 0.001:

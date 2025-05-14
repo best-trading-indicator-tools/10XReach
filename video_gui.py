@@ -132,9 +132,18 @@ if use_universal:
         key="u_speed",
     )
 
-    # Effects checkboxes
-    st.checkbox("Increase & randomise zoom + pan", key="u_zoom_pan")
-    st.checkbox("Add light film-grain noise", key="u_grain")
+    # Zoom-pan strength slider (controls end zoom scale 1.00–2.00)
+    st.slider(
+        "End zoom scale (Ken Burns) — 1.00 = off",
+        min_value=1.00,
+        max_value=2.00,
+        value=1.10,
+        step=0.005,
+        key="u_zoom_scale",
+        help="Controls the final zoom factor for the Ken Burns effect. Values above 1.10 markedly lower SSIM."
+    )
+
+    # Additional effect
     st.checkbox("Horizontally flip video", key="u_hflip")
 
 
@@ -189,9 +198,17 @@ if uploaded_files and not use_universal:
                 help="Set a unique playback speed for this clip (0.5–1.5×). Audio tempo is auto-corrected."
             )
 
-            # New effects controls
-            st.checkbox("Increase & randomise zoom + pan", key=f"zoom_pan_{idx}")
-            st.checkbox("Add light film-grain noise", key=f"grain_{idx}")
+            # Zoom-pan strength slider for this clip
+            st.slider(
+                "End zoom scale (Ken Burns) — 1.00 = off",
+                min_value=1.00,
+                max_value=2.00,
+                value=1.10,
+                step=0.005,
+                key=f"zoom_scale_{idx}",
+                help="Controls the final zoom factor for this clip only."
+            )
+            # Other effect
             st.checkbox("Horizontally flip video", key=f"hflip_{idx}")
 
 process_btn = st.button("Process Videos")
@@ -246,8 +263,7 @@ if process_btn:
                 rotation_degrees = st.session_state.get("u_rotation", 0.0)
                 horizontal_flip_local = st.session_state.get("u_hflip", False)
                 playback_speed_val = st.session_state.get("u_speed", DEFAULT_SPEED)
-                random_zoom_pan_val = st.session_state.get("u_zoom_pan", False)
-                apply_film_grain_val = st.session_state.get("u_grain", False)
+                zoom_end_scale_val = st.session_state.get("u_zoom_scale", 1.10)
             else:
                 add_text = st.session_state.get(f"add_text_{idx-1}", False)
                 text_to_overlay = st.session_state.get(f"text_{idx-1}") if add_text else None
@@ -260,8 +276,7 @@ if process_btn:
                 rotation_degrees = st.session_state.get(f"rotation_{idx-1}", 0.0)
                 horizontal_flip_local = st.session_state.get(f"hflip_{idx-1}", False)
                 playback_speed_val = st.session_state.get(f"speed_{idx-1}", DEFAULT_SPEED)
-                random_zoom_pan_val = st.session_state.get(f"zoom_pan_{idx-1}", False)
-                apply_film_grain_val = st.session_state.get(f"grain_{idx-1}", False)
+                zoom_end_scale_val = st.session_state.get(f"zoom_scale_{idx-1}", 1.10)
 
             st.write(f"Processing {filename} ...")
             # Execute FFmpeg for processing
@@ -281,8 +296,8 @@ if process_btn:
                 text_italic=text_italic,
                 rotation_degrees=rotation_degrees, # rotation
                 playback_speed=playback_speed_val,
-                random_zoom_pan=random_zoom_pan_val,
-                apply_film_grain=apply_film_grain_val
+                random_zoom_pan=False,
+                zoom_end_scale=zoom_end_scale_val
             )
 
             # Compute SSIM similarity percentage if processing succeeded

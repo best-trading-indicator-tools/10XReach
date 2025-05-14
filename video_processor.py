@@ -155,7 +155,6 @@ def process_videos(input_folder, output_folder, ffmpeg_executable, specific_file
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process videos for TikTok. Removes metadata, resizes, trims, and optionally adjusts visuals and audio.")
     parser.add_argument("-f", "--file", type=str, help="Filename of a specific video to process (must be in the input folder). Processes all .mp4 files if not specified.")
-    parser.add_argument("--noise_file", type=str, help="Path to an audio file to mix in as very low volume background noise.")
     args = parser.parse_args()
 
     input_video_folder = "videos"
@@ -194,11 +193,16 @@ if __name__ == "__main__":
         print(f"Warning: Input folder '{input_video_folder}' not found, but a specific file was requested. Assuming it's accessible.")
         # The check for specific file existence is now inside process_videos
 
-    if args.noise_file and not os.path.isfile(args.noise_file):
-        print(f"Warning: Noise file '{args.noise_file}' not found. Proceeding without background noise.")
-        args.noise_file = None # Process without noise if file not found
+    # Determine if default background noise file exists
+    default_noise_path = "sounds/background_noise.mp3"
+    actual_noise_path = None
+    if os.path.isfile(default_noise_path):
+        actual_noise_path = default_noise_path
+        print(f"Default background noise file found: {actual_noise_path}. It will be used.")
+    else:
+        print(f"Default background noise file not found at '{default_noise_path}'. Proceeding without background noise.")
 
-    processed_count, skipped_count = process_videos(input_video_folder, output_video_folder, ffmpeg_path, specific_filename=args.file, noise_audio_path=args.noise_file)
+    processed_count, skipped_count = process_videos(input_video_folder, output_video_folder, ffmpeg_path, specific_filename=args.file, noise_audio_path=actual_noise_path)
 
     print(f"\nProcessing complete.")
     print(f"Successfully processed: {processed_count} files.")

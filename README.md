@@ -55,7 +55,7 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
     *   Sets an audio bitrate of `192k` (`-b:a 192k`) for good quality stereo audio.
     *   Applies a slight pitch shift (~3 %) via `asetrate`/`aresample` to alter the audio fingerprint without changing tempo.
     *   Offsets the audio track by 200 ms (`adelay`) to further break direct alignment with original material.
-    *   **Optional Background Noise**: Can mix an external audio file as very low-volume background noise using the `--noise_file` argument. This adds another layer of audio uniqueness. The noise audio is looped and its volume is significantly reduced.
+    *   **Automatic Background Noise**: If a file named `background_noise.mp3` exists in the `sounds/` directory, it is automatically mixed in as very low-volume background noise. This adds another layer of audio uniqueness. The noise audio is looped and its volume is significantly reduced. If the file is not found, processing continues without background noise.
 11. **Cross-Platform Compatibility**: The script is designed to be compatible with both macOS and Windows, provided Python 3 and FFmpeg are correctly installed and accessible. It includes logic to try and find the FFmpeg executable.
 
 ## Why These Steps Are Useful
@@ -73,6 +73,7 @@ While no script can guarantee that a video won't be subject to platform algorith
 1.  **Prerequisites**:
     *   **Python 3**: Ensure Python 3 is installed on your system.
     *   **FFmpeg**: Ensure FFmpeg is installed and accessible in your system's PATH, or the script will attempt to guide you if it can't find it in common locations.
+    *   **Optional Background Noise File**: To enable automatic background noise mixing, create a `sounds/` directory in the same location as the script, and place an audio file named `background_noise.mp3` inside it.
 2.  **Setup**:
     *   Place the `.mp4` video files you want to process into a folder named `videos/` in the same directory as the `video_processor.py` script.
 3.  **Running the Script**:
@@ -104,5 +105,5 @@ This script was developed iteratively, adding features based on common requireme
 *   Enhanced to include slight visual adjustments (brightness/contrast) and explicit video bitrate.
 *   Further improved by adding audio re-encoding instead of just copying the audio stream.
 *   Made more user-friendly by adding command-line options for single-file processing and auto-clearing of the output directory.
-*   Added optional background noise mixing for further audio differentiation.
+*   Added optional background noise mixing (automatically detected from `sounds/background_noise.mp3`) for further audio differentiation.
 *   Addressed and fixed bugs, such as an initial gray screen issue caused by a previous speed adjustment filter (which has since been removed). 

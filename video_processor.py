@@ -103,12 +103,23 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         command.extend(["-stream_loop", "-1", "-i", noise_audio_path])
 
     # Base video filters
-    vf_options = "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,crop=iw*0.97:ih*0.97:(iw - iw*0.97)/2:(ih - ih*0.97)/2,drawbox=x=2:y=2:w=2:h=2:color=white@0.9:t=fill"
+    vf_options_list = [
+        "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
+    ]
+
+    # Ken Burns effect: zoom from 1.0x to 1.1x over 29 seconds (approx 870 frames at 30fps)
+    # Increment: (1.1 - 1.0) / (29 * 30) = 0.1 / 870 = 0.0001149...
+    zoom_increment = (1.1 - 1.0) / (29 * 30) # Using 30fps as a reference for zoompan's rate
+    vf_options_list.append(f"zoompan=z='min(max(1,zoom)+{zoom_increment:.6f},1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:d=1:fps=30")
+    
+    vf_options_list.append("drawbox=x=2:y=2:w=2:h=2:color=white@0.9:t=fill")
     
     if horizontal_flip:
-        vf_options += ",hflip"
+        vf_options_list.append("hflip")
         
-    vf_options += ",setsar=1,eq=brightness=0.005:contrast=1.005"
+    vf_options_list.append("setsar=1,eq=brightness=0.005:contrast=1.005")
+
+    vf_options = ",".join(vf_options_list)
 
     # Add drawtext filter if text_to_overlay is provided
     if text_to_overlay and font_size and text_color:

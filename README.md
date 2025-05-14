@@ -188,3 +188,48 @@ TikTok's exact thresholds are unknown, but anecdotal evidence suggests:
 Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice.
 
 > **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. 
+
+## Implementation Status
+
+| Feature                    | Status      | Implementation Details                                                              |
+|----------------------------|-------------|-------------------------------------------------------------------------------------|
+| **Visual Changes**         |             |                                                                                     |
+| Resize to 1080x1920        | ✅ Done     | Resizes to 1080x1920 (9:16 vertical), pads if needed, sets SAR 1:1                   |
+| Crop/zoom frame            | ✅ Done     | Applies a 3% centre-crop (crop=iw*0.97:ih*0.97)                                     |
+| Add overlay text           | ✅ Done     | GUI: Per-video text, pos, size, color, bg-color, bold/italic styles                 |
+| Tweak color settings       | ✅ Done     | Slight brightness (0.005) & contrast (1.005) adjustments                            |
+| Flip video horizontally    | ✅ Done     | Optional via `--hflip` (CLI) or global GUI checkbox                                 |
+| Change playback speed      | ❌ Not done | Video speed unchanged (audio pitch is shifted separately)                             |
+| Add watermark/dot          | ✅ Done     | Adds 2x2px white dot (top-left); GUI offers advanced text overlay (see above)       |
+| Trim video duration        | ✅ Done     | Trims video to a maximum of 29 seconds                                              |
+| **Audio Changes**          |             |                                                                                     |
+| Shift audio pitch          | ✅ Done     | Pitch shifted up by ~3% (asetrate=SAMPLERATE*1.03, resamples)                      |
+| Add background noise       | ✅ Done     | Mixes `sounds/background_noise.mp3` if present, else auto-generates white noise     |
+| Use TikTok voiceover       | ❌ Not done | Not implemented; would require TikTok app integration                               |
+| Cut/offset audio           | ✅ Done     | Adds 200ms delay to audio track (adelay=200|200)                                   |
+| **Metadata Changes**       |             |                                                                                     |
+| Remove metadata            | ✅ Done     | Strips all metadata (`-map_metadata -1`)                                            |
+| Re-export video            | ✅ Done     | Fully re-encoded with libx264 (video) and aac (audio)                               |
+
+## Interpreting the SSIM Score (GUI)
+
+When you process videos via `video_gui.py` a **SSIM** (%) column appears for each file:
+
+* **SSIM (Structural Similarity Index)** compares every frame of the original input against the processed output, then averages the results.
+* The GUI rescales both videos to 1080 × 1920 first, so we always compare like-for-like frames.
+* The value is reported as a **percentage**:
+  * **≈ 100 %**  → virtually identical (barely altered).
+  * **90 – 95 %**  → minor visual changes only.
+  * **80 – 90 %**  → moderate changes (good starting point, but might still be recognised on very popular clips).
+  * **< 80 %**    → significant visual difference (lowest chance of duplicate-content flags).
+
+### What score should I aim for?
+TikTok's exact thresholds are unknown, but anecdotal evidence suggests:
+
+* **≥ 95 %**: Too high – platform likely treats it as the same clip.
+* **≈ 80–90 %**: Usually acceptable, yet if you want maximum safety add an extra tweak (e.g., overlay text, horizontal flip, stronger crop).
+* **< 80 %**: Safe zone for most duplicate-detection systems.
+
+Remember that TikTok also fingerprints **audio** and **metadata**. The script already tweaks those layers (pitch-shift, background noise, metadata wipe), so even an 80 % visual SSIM can be fine in practice.
+
+> **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. 

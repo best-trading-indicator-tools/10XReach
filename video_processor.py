@@ -135,7 +135,7 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         vf_options_list.append(
             f"zoompan=z='min(max(1,zoom)+{zoom_increment:.6f},1.1)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920:d=1:fps=30"
         )
-
+    
     # Add rotation if specified
     if rotation_degrees != 0.0:
         rotation_radians = math.radians(rotation_degrees)

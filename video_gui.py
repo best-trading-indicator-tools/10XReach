@@ -13,6 +13,15 @@ st.set_page_config(page_title="10XReach Video Processor", page_icon="🎞️", l
 
 st.title("🎞️ 10XReach Video Processor GUI")
 
+# SSIM guideline for users
+st.info(
+    "SSIM (Structural Similarity Index) measures visual similarity between the original and processed video on a scale of 0–100.  \n\n"
+    "Higher scores mean the output looks almost identical to the source; lower scores indicate larger visual changes.  \n\n"
+    "Seeing different scores for clips processed with the same settings is normal because each source clip starts with different resolution, quality, and content. \n\n"
+    "📊 **Guideline:** Aim for SSIM scores of **≤ 80%** before uploading to TikTok.  \n\n"
+    "Scores in the 70-80% range provide good protection while preserving quality.  \n\n"
+)
+
 # Make drag-and-drop zone taller/more prominent
 st.markdown(
     """

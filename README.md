@@ -192,6 +192,8 @@ Remember that TikTok also fingerprints **audio** and **metadata**. The script al
 
 > **In short:** An 80 % SSIM means the processed video still shares 80 % of its pixel structure with the source – it's changed by about 20 %. That is generally OK, but lower scores provide a wider safety margin. Using the rotation feature is a good way to push scores lower.
 
+**Quick guideline ▶︎ Aim for an average SSIM of ≤ 80 % (≈ 0.80) before uploading repurposed videos to TikTok.** Scores in the 70–80 % range are generally safe while preserving perceived quality.
+
 ## Implementation Status
 
 | Feature                    | Status      | Implementation Details                                                              |

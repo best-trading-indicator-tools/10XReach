@@ -30,20 +30,22 @@ To avoid detection: modify at least 2-3 layers (visual, audio, metadata). Don't 
 IMPLEMENTATION STATUS
 ====================================================================================================
 
-| Feature                    | Status      | Implementation Details                                  |
-|----------------------------|-------------|--------------------------------------------------------|
-| **Visual Changes**         |             |                                                        |
-| Crop/zoom frame            | ✅ Done     | Crops 3% from each edge (crop=iw*0.97:ih*0.97)         |
-| Add overlay text           | ✅ Done     | Supports text with customizable position, size, color   |
-| Tweak color settings       | ✅ Done     | Slight brightness/contrast adjustments                  |
-| Flip video horizontally    | ✅ Done     | Optional via --hflip command line argument              |
-| Change playback speed      | ❌ Not done | Not implemented (though audio pitch is shifted)         |
-| Add watermark/dot          | ⚠️ Partial  | Can add text, but no specific watermark function        |
-| **Audio Changes**          |             |                                                        |
-| Shift audio pitch          | ✅ Done     | Pitch shifted up by 3% (asetrate=48000*1.03)           |
-| Add background noise       | ✅ Done     | Supports mixing in background noise file at low volume  |
-| Use TikTok voiceover       | ❌ Not done | Would require TikTok app integration                    |
-| Cut/offset audio           | ✅ Done     | Adds 200ms delay to audio (adelay=200|200)             |
-| **Metadata Changes**       |             |                                                        |
-| Remove metadata            | ✅ Done     | Strips all metadata (-map_metadata -1)                  |
-| Re-export video            | ✅ Done     | Output is fully re-encoded with libx264 and aac         |
+| Feature                    | Status      | Implementation Details                                                              |
+|----------------------------|-------------|-------------------------------------------------------------------------------------|
+| **Visual Changes**         |             |                                                                                     |
+| Resize to 1080x1920        | ✅ Done     | Resizes to 1080x1920 (9:16 vertical), pads if needed, sets SAR 1:1                   |
+| Crop/zoom frame            | ✅ Done     | Applies a 3% centre-crop (crop=iw*0.97:ih*0.97)                                     |
+| Add overlay text           | ✅ Done     | GUI: Per-video text, pos, size, color, bg-color, bold/italic styles                 |
+| Tweak color settings       | ✅ Done     | Slight brightness (0.005) & contrast (1.005) adjustments                            |
+| Flip video horizontally    | ✅ Done     | Optional via `--hflip` (CLI) or global GUI checkbox                                 |
+| Change playback speed      | ❌ Not done | Video speed unchanged (audio pitch is shifted separately)                             |
+| Add watermark/dot          | ✅ Done     | Adds 2x2px white dot (top-left); GUI offers advanced text overlay (see above)       |
+| Trim video duration        | ✅ Done     | Trims video to a maximum of 29 seconds                                              |
+| **Audio Changes**          |             |                                                                                     |
+| Shift audio pitch          | ✅ Done     | Pitch shifted up by ~3% (asetrate=SAMPLERATE*1.03, resamples)                      |
+| Add background noise       | ✅ Done     | Mixes `sounds/background_noise.mp3` if present, else auto-generates white noise     |
+| Use TikTok voiceover       | ❌ Not done | Not implemented; would require TikTok app integration                               |
+| Cut/offset audio           | ✅ Done     | Adds 200ms delay to audio track (adelay=200|200)                                   |
+| **Metadata Changes**       |             |                                                                                     |
+| Remove metadata            | ✅ Done     | Strips all metadata (`-map_metadata -1`)                                            |
+| Re-export video            | ✅ Done     | Fully re-encoded with libx264 (video) and aac (audio)                             |

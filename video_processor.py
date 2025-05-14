@@ -4,6 +4,14 @@ import platform
 import shutil # Added for rmtree
 import argparse # Added for command-line arguments
 
+# Potential font paths - adjust as needed or ensure font.ttf is in the project root
+FONT_FILE_PATH_MACOS_SYSTEM = "/System/Library/Fonts/Helvetica.ttc"
+FONT_FILE_PATH_WINDOWS_SYSTEM = "C:/Windows/Fonts/arial.ttf"
+FONT_FILE_PROJECT_ROOT = "font.ttf"
+FONT_FILE_BOLD = "font-bold.ttf"
+FONT_FILE_ITALIC = "font-italic.ttf"
+FONT_FILE_BOLD_ITALIC = "font-bolditalic.ttf"
+
 def get_ffmpeg_path():
     """Detects FFmpeg path based on OS or prompts user if not found."""
     if platform.system() == "Windows":
@@ -32,8 +40,55 @@ def get_ffmpeg_path():
     print("FFmpeg not found in common paths. Attempting to use 'ffmpeg' from system PATH.")
     return "ffmpeg"
 
+def get_font_path(is_bold=False, is_italic=False):
+    """Attempts to find a suitable font file based on style."""
+    font_to_try = []
+    specific_style_found = False
 
-def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename_for_log, noise_audio_path=None, horizontal_flip=False):
+    if is_bold and is_italic:
+        font_to_try.append(FONT_FILE_BOLD_ITALIC)
+    elif is_bold:
+        font_to_try.append(FONT_FILE_BOLD)
+    elif is_italic:
+        font_to_try.append(FONT_FILE_ITALIC)
+    
+    # Check for specifically styled fonts first
+    for f_style in font_to_try:
+        if os.path.isfile(f_style):
+            # print(f"Using styled font: {f_style}") # For debugging
+            return f_style
+
+    # Fallback to regular project font
+    if os.path.isfile(FONT_FILE_PROJECT_ROOT):
+        if font_to_try: # If a style was requested but not found
+            print(f"Warning: Styled font for bold={is_bold}, italic={is_italic} not found (e.g., {font_to_try[0]}). Falling back to {FONT_FILE_PROJECT_ROOT}.")
+        return FONT_FILE_PROJECT_ROOT
+
+    # Fallback to system fonts
+    system_font = None
+    if platform.system() == "Darwin": # macOS
+        if os.path.isfile(FONT_FILE_PATH_MACOS_SYSTEM):
+            system_font = FONT_FILE_PATH_MACOS_SYSTEM
+    elif platform.system() == "Windows":
+        if os.path.isfile(FONT_FILE_PATH_WINDOWS_SYSTEM):
+            system_font = FONT_FILE_PATH_WINDOWS_SYSTEM
+    
+    if system_font:
+        if font_to_try: # If a style was requested but not found, and project font.ttf also not found
+            print(f"Warning: Styled font (e.g., {font_to_try[0]}) and {FONT_FILE_PROJECT_ROOT} not found. Falling back to system font: {system_font}.")
+        elif not os.path.isfile(FONT_FILE_PROJECT_ROOT):
+             print(f"Warning: {FONT_FILE_PROJECT_ROOT} not found. Falling back to system font: {system_font}.")
+        return system_font
+
+    print(f"Warning: No specific or common font files found (tried: {', '.join(font_to_try) if font_to_try else 'none'}, {FONT_FILE_PROJECT_ROOT}, system defaults).")
+    print("Drawtext filter might use a basic FFmpeg default font or fail if none is found by FFmpeg.")
+    print(f"For best results and styling, place appropriate .ttf files (e.g., {FONT_FILE_PROJECT_ROOT}, {FONT_FILE_BOLD}, {FONT_FILE_ITALIC}) in your project directory.")
+    return None # Let FFmpeg try to find a default
+
+def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename_for_log, noise_audio_path=None, horizontal_flip=False,
+                            text_to_overlay=None, text_position=None, font_size=None, 
+                            text_color=None, text_bg_color=None,
+                            text_bold=False, text_italic=False):
     """Helper function to construct and run the FFmpeg command for a single file."""
     command = [
         ffmpeg_executable,
@@ -50,6 +105,38 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         vf_options += ",hflip"
         
     vf_options += ",setsar=1,eq=brightness=0.005:contrast=1.005"
+
+    # Add drawtext filter if text_to_overlay is provided
+    if text_to_overlay and font_size and text_color:
+        font_file = get_font_path(is_bold=text_bold, is_italic=text_italic)
+        
+        # Sanitize text for FFmpeg filter: escape single quotes and some special characters
+        # This is a basic sanitization, more complex text might need more robust escaping
+        sanitized_text = text_to_overlay.replace("'", "'\\''").replace(":", "\\:").replace("%", "\\%")
+
+        drawtext_filter = f"drawtext=text='{sanitized_text}':fontcolor={text_color}:fontsize={font_size}"
+        
+        if font_file:
+            # FFmpeg on Windows sometimes has issues with full paths in filter strings if they contain colons (e.g. C:)
+            # Escaping the font file path is important, especially for Windows.
+            escaped_font_file = font_file.replace("\\", "/").replace(":", "\\:") if platform.system() == "Windows" else font_file
+            drawtext_filter += f":fontfile='{escaped_font_file}'"
+
+        # Positioning
+        if text_position == "Top Center":
+            drawtext_filter += ":x=(w-text_w)/2:y=20" # 20px from top
+        elif text_position == "Middle Center":
+            drawtext_filter += ":x=(w-text_w)/2:y=(h-text_h)/2"
+        elif text_position == "Bottom Center":
+            drawtext_filter += ":x=(w-text_w)/2:y=h-th-20" # 20px from bottom
+        else: # Default to Bottom Center if somehow unspecified
+            drawtext_filter += ":x=(w-text_w)/2:y=h-th-20"
+
+        # Background box for text
+        if text_bg_color and text_bg_color.lower() != "none" and text_bg_color.lower() != "transparent":
+            drawtext_filter += f":box=1:boxcolor={text_bg_color}:boxborderw=10" # 10px padding for the box
+        
+        vf_options += f",{drawtext_filter}"
 
     command.extend([
         "-map_metadata", "-1",

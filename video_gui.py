@@ -11,6 +11,28 @@ st.set_page_config(page_title="10XReach Video Processor", page_icon="🎞️", l
 
 st.title("🎞️ 10XReach Video Processor GUI")
 
+# Make drag-and-drop zone taller/more prominent
+st.markdown(
+    """
+    <style>
+    /* Increase the height and padding of the file uploader dropzone */
+    div[data-testid="stFileUploadDropzone"] {
+        min-height: 300px !important; /* larger drop area */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed rgba(0, 0, 0, 0.2);
+        background-color: rgba(0, 0, 0, 0.02);
+        padding: 40px !important;
+    }
+    div[data-testid="stFileUploadDropzone"] > section {
+        height: 100% !important; /* ensure inner section fills the container */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Upload section
 uploaded_files = st.file_uploader(
     label="Drag & drop up to 10 .mp4 videos (or click to browse)",
@@ -18,7 +40,35 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
+# --- Processing Options ---
+st.subheader("Processing Options")
 horizontal_flip = st.checkbox("Horizontally flip video (same as --hflip)")
+
+# ----------------------------
+# Per-video text overlay settings
+# ----------------------------
+if uploaded_files:
+    st.markdown("### Text Overlay Settings (per video)")
+    for idx, file in enumerate(uploaded_files):
+        with st.expander(f"Text settings for: {file.name}", expanded=True):
+            st.checkbox("Add text overlay", key=f"add_text_{idx}")
+            if st.session_state.get(f"add_text_{idx}"):
+                st.text_input("Text to display", key=f"text_{idx}", value="Your Text Here")
+                st.selectbox(
+                    "Text position",
+                    ("Top Center", "Middle Center", "Bottom Center"),
+                    index=2,
+                    key=f"pos_{idx}"
+                )
+                st.number_input("Font size", min_value=10, max_value=200, value=24, key=f"size_{idx}")
+                st.text_input("Text color (e.g., white, #FF0000)", value="white", key=f"color_{idx}")
+                st.text_input("Background color (e.g., black@0.5, none)", value="black@0.5", key=f"bg_{idx}")
+                # Font style options
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.checkbox("Bold", key=f"bold_{idx}")
+                with col2:
+                    st.checkbox("Italic", key=f"italic_{idx}")
 
 process_btn = st.button("Process Videos")
 
@@ -59,6 +109,16 @@ if process_btn:
 
             output_path = os.path.join(output_dir, f"tt_{filename}")
 
+            # Retrieve overlay settings for this file
+            add_text = st.session_state.get(f"add_text_{idx-1}", False)
+            text_to_overlay = st.session_state.get(f"text_{idx-1}") if add_text else None
+            text_position = st.session_state.get(f"pos_{idx-1}") if add_text else None
+            font_size = st.session_state.get(f"size_{idx-1}") if add_text else None
+            text_color = st.session_state.get(f"color_{idx-1}") if add_text else None
+            text_bg_color = st.session_state.get(f"bg_{idx-1}") if add_text else None
+            text_bold = st.session_state.get(f"bold_{idx-1}", False) if add_text else False
+            text_italic = st.session_state.get(f"italic_{idx-1}", False) if add_text else False
+
             st.write(f"Processing {filename} ...")
             if _execute_ffmpeg_command(
                 ffmpeg_path,
@@ -67,6 +127,13 @@ if process_btn:
                 filename,
                 noise_audio_path=noise_path,
                 horizontal_flip=horizontal_flip,
+                text_to_overlay=text_to_overlay,
+                text_position=text_position,
+                font_size=font_size,
+                text_color=text_color,
+                text_bg_color=text_bg_color,
+                text_bold=text_bold,
+                text_italic=text_italic
             ):
                 success_count += 1
             else:

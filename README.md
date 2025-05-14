@@ -61,8 +61,16 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
     *   **Automatic Background Noise**: If a file named `background_noise.mp3` exists in the `sounds/` directory, it is automatically mixed in as very low-volume background noise. This adds another layer of audio uniqueness. The noise audio is looped and its volume is significantly reduced. If the file is not found, processing continues without background noise.
 11. **Cross-Platform Compatibility**: The script is designed to be compatible with both macOS and Windows, provided Python 3 and FFmpeg are correctly installed and accessible. It includes logic to try and find the FFmpeg executable.
 12. **Graphical User Interface (GUI)**: A `video_gui.py` script using Streamlit provides a user-friendly way to interact with the video processor. Features include:
-    *   Drag-and-drop uploading of up to 5 `.mp4` video files at a time.
-    *   A checkbox to enable/disable horizontal video flipping.
+    *   Drag-and-drop uploading of up to 10 `.mp4` video files at a time (default was 5, updated to 10 as per current GUI code).
+    *   A global checkbox to enable/disable horizontal video flipping for all processed videos in a batch.
+    *   **Per-Video Text Overlay Customization**: For each uploaded video, you can individually:
+        *   Enable or disable text overlay.
+        *   Set the text content.
+        *   Choose text position (Top Center, Middle Center, Bottom Center).
+        *   Define font size.
+        *   Specify text color.
+        *   Set a background color for the text (can be semi-transparent or "none").
+        *   Choose text style: **Bold** and/or **Italic**. (Requires providing corresponding font files like `font-bold.ttf`, `font-italic.ttf` in the project root for reliable styling; see Font Handling section).
     *   Progress bar during processing.
     *   Download a `.zip` file containing all processed videos.
 
@@ -95,6 +103,12 @@ While no script can guarantee that a video won't be subject to platform algorith
     **A) Using the Graphical User Interface (Recommended for ease of use):**
     *   Open your terminal or command prompt.
     *   Navigate to the project directory.
+    *   **Font Handling for Text Overlays (Important!):** For best results with text overlays, especially for **Bold** and **Italic** styles, place the corresponding `.ttf` (TrueType Font) files in the root of your project directory:
+        *   `font.ttf` (for regular text)
+        *   `font-bold.ttf` (for bold text)
+        *   `font-italic.ttf` (for italic text)
+        *   `font-bolditalic.ttf` (for bold and italic text)
+        If these specific files are not found, the script will attempt to use system default fonts (like Helvetica on macOS or Arial on Windows), which may not support all styles or look as intended. The script will provide warnings in the console if it cannot find the requested styled fonts.
     *   Run the GUI:
         ```bash
         python3 -m streamlit run video_gui.py
@@ -143,7 +157,11 @@ This script was developed iteratively, adding features based on common requireme
 *   Added optional background noise mixing (automatically detected from `sounds/background_noise.mp3`) for further audio differentiation.
 *   Addressed and fixed bugs, such as an initial gray screen issue caused by a previous speed adjustment filter (which has since been removed).
 *   **Added a Streamlit-based GUI (`video_gui.py`)**:
-    *   Allows drag-and-drop of up to 5 video files.
+    *   Allows drag-and-drop of up to 10 video files (updated from 5).
     *   Provides an option for horizontal flipping.
+    *   **Introduced per-video customizable text overlays**:
+        *   Toggle overlay on/off per video.
+        *   Set custom text, position, font size, color, and background color.
+        *   Options for **Bold** and **Italic** text styles (reliant on user-provided font files for best results).
     *   Displays processing progress.
     *   Enables downloading processed files as a `.zip` archive. 

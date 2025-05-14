@@ -53,8 +53,8 @@ The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia f
     *   Applies a subtle **lens distortion** (`k1≈0.01`) to introduce barrel-style warping that is imperceptible on phone screens yet lowers frame similarity.
     *   **Horizontal Flip (Optional)**: Can horizontally flip the video using the `--hflip` command-line argument. This is another common technique to make content appear different to detection algorithms.
 9.  **Video Encoding**:
-    *   Uses the `libx264` codec for video encoding, which is widely compatible.
-    *   Sets an explicit video bitrate of `6000k` (`-b:v 6000k`) to ensure consistent quality and a different video stream signature than a default transcode.
+    *   Uses the `libx264` codec (H.264) for video encoding, which is widely compatible.
+    *   Employs **CRF (Constant Rate Factor) encoding** (randomly between 21-25) instead of a fixed bitrate. This adjusts bitrate dynamically to maintain consistent visual quality, which also helps in making the video file signature more unique compared to fixed-bitrate encodes.
 10. **Audio Re-encoding & Manipulation**:
     *   Re-encodes the audio stream to the AAC (Advanced Audio Coding) codec (`-c:a aac`).
     *   Sets an audio bitrate of `192k` (`-b:a 192k`) for good quality stereo audio.
@@ -208,3 +208,30 @@ To push SSIM lower (≈ 60-80 %) enable one or more of the following in the GUI:
 • Overlay text/watermark or change playback **speed**.  
 
 Combining two or three of these options typically lands well below the 80 % threshold while keeping quality high. Feel free to experiment; the SSIM column updates per file so you can see the effect immediately. 
+
+## Feature Implementation Status vs. Specs
+
+This table summarizes the features suggested in the `specs` document and their current status in this project:
+
+| Feature Category     | Spec Sheet Feature                        | Status in Project | Notes                                                                                                                               |
+|----------------------|-------------------------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| **General**          | File Hash Modification                    | ✅ Implemented    | Achieved via re-encoding and multiple subtle/optional visual and audio changes.                                                       |
+|                      | Visual/Audio Fingerprinting               | ✅ Implemented    | Addressed by various visual (zoom, rotate, color, grain, lens) & audio (pitch, noise, offset) modifications.                         |
+|                      | Metadata Removal                          | ✅ Implemented    | `-map_metadata -1` strips all metadata.                                                                                             |
+|                      | Re-export Video                           | ✅ Implemented    | Videos are fully re-encoded using `libx264` (CRF 21-25) and `aac`.                                                                      |
+| **Visual Changes**   | Slightly crop or zoom the frame           | ✅ Implemented    | Default Ken Burns (1.0 → 1.10 zoom). GUI slider for end-zoom up to 2.0 (capped at 1.18 in `ssim_score_improvement.md` plan).        |
+|                      | Add overlay text                          | ✅ Implemented    | GUI: Per-video text, position, size, color, background, bold/italic.                                                              |
+|                      | Use filters or tweak color settings       | ✅ Implemented    | Automatic: Brightness/contrast (+0.005), Hue Shift (±5°).                                                                         |
+|                      | Flip the video horizontally               | ✅ Implemented    | Optional via CLI (`--hflip`) or global GUI checkbox.                                                                                |
+|                      | Change playback speed just a bit          | ✅ Implemented    | GUI: Per-video speed slider (0.5x – 1.5x), affects video and audio (pitch preserved).                                                 |
+|                      | Add a small watermark or dot in a corner  | ✅ Implemented    | Automatic: 2x2px white dot (top-left). Text overlay can serve as watermark.                                                             |
+|                      | (Implicit) Resize to 1080x1920            | ✅ Implemented    | Automatic: All videos scaled/padded to 1080x1920.                                                                                   |
+|                      | (Implicit) Trim video duration            | ✅ Implemented    | Automatic: Videos trimmed to 29 seconds.                                                                                            |
+|                      | (Internal) Lens Distortion                | ✅ Implemented    | Automatic: Subtle lens correction (k1=k2 ≈ 0.008-0.02).                                                                             |
+|                      | (Internal) Film Grain                     | ✅ Implemented    | Automatic: Light film grain noise (strength 4-8).                                                                                   |
+| **Audio Changes**    | Shift the audio pitch up/down slightly    | ✅ Implemented    | Automatic: Pitch shifted by ~3% (`asetrate`).                                                                                       |
+|                      | Add background noise                      | ✅ Implemented    | Automatic: Mixes `sounds/background_noise.mp3` or generated white noise.                                                              |
+|                      | Use TikTok's voiceover feature          | ❌ Not Implemented | Requires TikTok app integration or separate audio track generation/mixing, which is outside the current script's scope.             |
+|                      | Cut or offset the audio by 0.2s         | ✅ Implemented    | Automatic: Audio delayed by 200ms (`adelay`).                                                                                       |
+
+*Features listed under "Status in Project" as "Automatic" are applied to all videos by default without needing user input. Others are available via GUI or CLI options.* 

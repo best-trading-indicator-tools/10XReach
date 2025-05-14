@@ -114,6 +114,9 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2"
     ]
 
+    # Mild CRF compression (random 21–25) instead of fixed bitrate
+    crf_val = random.randint(21, 25)
+
     # Ken Burns / Zoom-pan.
 
     # Priority: if a specific zoom_end_scale (>1.0) is supplied (e.g., via GUI slider), honour it.
@@ -229,7 +232,7 @@ def _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename
         "-vf", vf_options, # Use the constructed vf_options string
         "-t", "29", # Trim output to 29 seconds
         "-c:v", "libx264",
-        "-b:v", "6000k",
+        "-crf", str(crf_val),
     ])
 
     # Build audio filter
@@ -326,6 +329,8 @@ def process_videos(input_folder, output_folder, ffmpeg_executable, specific_file
         if noise_audio_path:
             print(f"Mixing with background noise: {noise_audio_path}")
         try:
+            
+
             if _execute_ffmpeg_command(ffmpeg_executable, input_path, output_path, filename, noise_audio_path=noise_audio_path, horizontal_flip=horizontal_flip):
                 processed_count += 1
             else:

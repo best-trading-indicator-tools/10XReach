@@ -31,6 +31,40 @@ This repository contains a Python script (`video_processor.py`) and a Streamlit-
 
 The `video_processor.py` script handles the core FFmpeg processing, while `video_gui.py` provides an easy-to-use interface for it.
 
+
+## Feature Implementation Status vs. Specs
+
+This table summarizes the features suggested in the `specs` document and their current status in this project:
+
+| Feature Category     | Spec Sheet Feature                        | Status in Project | Notes                                                                                                                               |
+|----------------------|-------------------------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------|
+| **General**          | File Hash Modification                    | ✅ Implemented    | Achieved via re-encoding and multiple subtle/optional visual and audio changes.                                                       |
+|                      | Visual/Audio Fingerprinting               | ✅ Implemented    | Addressed by various visual (zoom, rotate, color, grain, lens) & audio (pitch, noise, offset) modifications.                         |
+|                      | Metadata Removal                          | ✅ Implemented    | `-map_metadata -1` strips all metadata.                                                                                             |
+|                      | Re-export Video                           | ✅ Implemented    | Videos are fully re-encoded using `libx264` (CRF 21-25) and `aac`.                                                                      |
+| **Visual Changes**   | Slightly crop or zoom the frame           | ✅ Implemented    | Default Ken Burns (1.0 → 1.10 zoom). GUI slider for end-zoom up to 2.0 (capped at 1.18 in `ssim_score_improvement.md` plan).        |
+|                      | Add overlay text                          | ✅ Implemented    | GUI: Per-video text, position, size, color, background, bold/italic.                                                              |
+|                      | Use filters or tweak color settings       | ✅ Implemented    | Automatic: Brightness/contrast (+0.005), Hue Shift (±5°).                                                                         |
+|                      | Flip the video horizontally               | ✅ Implemented    | Optional via CLI (`--hflip`) or global GUI checkbox.                                                                                |
+|                      | Change playback speed just a bit          | ✅ Implemented    | GUI: Per-video speed slider (0.5x – 1.5x), affects video and audio (pitch preserved).                                                 |
+|                      | Add a small watermark or dot in a corner  | ✅ Implemented    | Automatic: 2x2px white dot (top-left). Text overlay can serve as watermark.                                                             |
+|                      | (Implicit) Resize to 1080x1920            | ✅ Implemented    | Automatic: All videos scaled/padded to 1080x1920.                                                                                   |
+|                      | (Implicit) Trim video duration            | ✅ Implemented    | Automatic: Videos trimmed to 29 seconds.                                                                                            |
+|                      | (Internal) Lens Distortion                | ✅ Implemented    | Automatic: Subtle lens correction (k1=k2 ≈ 0.008-0.02).                                                                             |
+|                      | (Internal) Film Grain                     | ✅ Implemented    | Automatic: Light film grain noise (strength 4-8).                                                                                   |
+| **Audio Changes**    | Shift the audio pitch up/down slightly    | ✅ Implemented    | Automatic: Pitch shifted by ~3% (`asetrate`).                                                                                       |
+|                      | Add background noise                      | ✅ Implemented    | Automatic: Mixes `sounds/background_noise.mp3` or generated white noise.                                                              |
+|                      | Use TikTok's voiceover feature          | ❌ Not Implemented | Requires TikTok app integration or separate audio track generation/mixing, which is outside the current script's scope.             |
+|                      | Cut or offset the audio by 0.2s         | ✅ Implemented    | Automatic: Audio delayed by 200ms (`adelay`).                                                                                       |
+| **From SSIM Plan**   | Randomised X/Y Pan Path (Zoompan)       | 🟡 Partially Done | GUI-driven zoom uses random X/Y *offsets*, but default zoom is center-panned. Plan suggested more dynamic pan path.                  |
+|                      | "Uniqueness Strength" Knob (GUI)        | ❌ Not Implemented | A single slider to scale multiple effects (zoom, rotation, hue, noise) as per `ssim_score_improvement.md` MVP.                       |
+|                      | Stronger Brightness/Contrast Options    | ❌ Not Implemented | Plan mentioned `eq` ±2–3% as high-leverage; current is fixed at +0.5%. Not a GUI option yet.                                        |
+|                      | Specific GUI Rotation Limits & Default  | ❌ Not Implemented | Plan suggested GUI rotation slider limited to ±1° (default 0.7°); current is ±45° (default 0°).                                    |
+|                      | Temporal Jitter (Frame Drop/Duplication)| ❌ Not Implemented | Stretch Idea: `minterpolate`, `tblend` to drop/duplicate 1-2% of frames.                                                            |
+|                      | Per-Frame Random Grain Mask             | ❌ Not Implemented | Stretch Idea: Procedurally generate 2-frame-periodic random noise.                                                                  |
+
+*Features listed under "Status in Project" as "Automatic" are applied to all videos by default without needing user input. Others are available via GUI or CLI options.* 
+
 ## How it Works & Features Implemented
 
 The `video_processor.py` script uses FFmpeg (a powerful open-source multimedia framework) to perform a series of transformations on input video files:
@@ -208,36 +242,3 @@ To push SSIM lower (≈ 60-80 %) enable one or more of the following in the GUI:
 • Overlay text/watermark or change playback **speed**.  
 
 Combining two or three of these options typically lands well below the 80 % threshold while keeping quality high. Feel free to experiment; the SSIM column updates per file so you can see the effect immediately. 
-
-## Feature Implementation Status vs. Specs
-
-This table summarizes the features suggested in the `specs` document and their current status in this project:
-
-| Feature Category     | Spec Sheet Feature                        | Status in Project | Notes                                                                                                                               |
-|----------------------|-------------------------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| **General**          | File Hash Modification                    | ✅ Implemented    | Achieved via re-encoding and multiple subtle/optional visual and audio changes.                                                       |
-|                      | Visual/Audio Fingerprinting               | ✅ Implemented    | Addressed by various visual (zoom, rotate, color, grain, lens) & audio (pitch, noise, offset) modifications.                         |
-|                      | Metadata Removal                          | ✅ Implemented    | `-map_metadata -1` strips all metadata.                                                                                             |
-|                      | Re-export Video                           | ✅ Implemented    | Videos are fully re-encoded using `libx264` (CRF 21-25) and `aac`.                                                                      |
-| **Visual Changes**   | Slightly crop or zoom the frame           | ✅ Implemented    | Default Ken Burns (1.0 → 1.10 zoom). GUI slider for end-zoom up to 2.0 (capped at 1.18 in `ssim_score_improvement.md` plan).        |
-|                      | Add overlay text                          | ✅ Implemented    | GUI: Per-video text, position, size, color, background, bold/italic.                                                              |
-|                      | Use filters or tweak color settings       | ✅ Implemented    | Automatic: Brightness/contrast (+0.005), Hue Shift (±5°).                                                                         |
-|                      | Flip the video horizontally               | ✅ Implemented    | Optional via CLI (`--hflip`) or global GUI checkbox.                                                                                |
-|                      | Change playback speed just a bit          | ✅ Implemented    | GUI: Per-video speed slider (0.5x – 1.5x), affects video and audio (pitch preserved).                                                 |
-|                      | Add a small watermark or dot in a corner  | ✅ Implemented    | Automatic: 2x2px white dot (top-left). Text overlay can serve as watermark.                                                             |
-|                      | (Implicit) Resize to 1080x1920            | ✅ Implemented    | Automatic: All videos scaled/padded to 1080x1920.                                                                                   |
-|                      | (Implicit) Trim video duration            | ✅ Implemented    | Automatic: Videos trimmed to 29 seconds.                                                                                            |
-|                      | (Internal) Lens Distortion                | ✅ Implemented    | Automatic: Subtle lens correction (k1=k2 ≈ 0.008-0.02).                                                                             |
-|                      | (Internal) Film Grain                     | ✅ Implemented    | Automatic: Light film grain noise (strength 4-8).                                                                                   |
-| **Audio Changes**    | Shift the audio pitch up/down slightly    | ✅ Implemented    | Automatic: Pitch shifted by ~3% (`asetrate`).                                                                                       |
-|                      | Add background noise                      | ✅ Implemented    | Automatic: Mixes `sounds/background_noise.mp3` or generated white noise.                                                              |
-|                      | Use TikTok's voiceover feature          | ❌ Not Implemented | Requires TikTok app integration or separate audio track generation/mixing, which is outside the current script's scope.             |
-|                      | Cut or offset the audio by 0.2s         | ✅ Implemented    | Automatic: Audio delayed by 200ms (`adelay`).                                                                                       |
-| **From SSIM Plan**   | Randomised X/Y Pan Path (Zoompan)       | 🟡 Partially Done | GUI-driven zoom uses random X/Y *offsets*, but default zoom is center-panned. Plan suggested more dynamic pan path.                  |
-|                      | "Uniqueness Strength" Knob (GUI)        | ❌ Not Implemented | A single slider to scale multiple effects (zoom, rotation, hue, noise) as per `ssim_score_improvement.md` MVP.                       |
-|                      | Stronger Brightness/Contrast Options    | ❌ Not Implemented | Plan mentioned `eq` ±2–3% as high-leverage; current is fixed at +0.5%. Not a GUI option yet.                                        |
-|                      | Specific GUI Rotation Limits & Default  | ❌ Not Implemented | Plan suggested GUI rotation slider limited to ±1° (default 0.7°); current is ±45° (default 0°).                                    |
-|                      | Temporal Jitter (Frame Drop/Duplication)| ❌ Not Implemented | Stretch Idea: `minterpolate`, `tblend` to drop/duplicate 1-2% of frames.                                                            |
-|                      | Per-Frame Random Grain Mask             | ❌ Not Implemented | Stretch Idea: Procedurally generate 2-frame-periodic random noise.                                                                  |
-
-*Features listed under "Status in Project" as "Automatic" are applied to all videos by default without needing user input. Others are available via GUI or CLI options.* 

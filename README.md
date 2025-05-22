@@ -131,6 +131,7 @@ While no script can guarantee that a video won't be subject to platform algorith
         ```bash
         pip install -r requirements.txt
         ```
+        > **Note**: If you encounter issues with pyarrow compilation during installation, the requirements.txt includes a specific compatible version (14.0.1) that should install without building from source. If you still have problems, try installing dependencies separately with: `pip install pyarrow==14.0.1 && pip install streamlit`
     *   **Optional Background Noise File**: To enable custom background noise mixing, create a `sounds/` directory in the same location as the script, and place an audio file named `background_noise.mp3` inside it. If no custom noise file is provided, the script will automatically generate a subtle white noise track.
 2.  **Setup**:
     *   Place the `.mp4` video files you want to process into a folder named `videos/` in the same directory as the `video_processor.py` script (this is mainly for the command-line version, the GUI uses direct uploads).
